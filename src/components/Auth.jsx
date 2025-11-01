@@ -1,12 +1,11 @@
 // MAGIC LINK ONLY — NO PIN — 2025-11-01
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient'; // CHANGE IF YOUR PATH IS DIFFERENT
+import { supabase } from './supabaseClient';
 
 export default function Auth() {
   const navigate = useNavigate();
 
-  // AUTO REDIRECT IF LOGGED IN
   useEffect(() => {
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -21,7 +20,6 @@ export default function Auth() {
     return () => listener?.subscription?.unsubscribe();
   }, [navigate]);
 
-  // MAGIC LINK FORM
   const sendLink = async (e) => {
     e.preventDefault();
     const email = e.target.email.value.trim();
