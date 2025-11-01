@@ -10,10 +10,22 @@ export default function ClockIn({ user }) {
   const [lastClock, setLastClock] = useState(null);
 
   useEffect(() => {
-    // Load sites
-    supabase.from('sites').select('id, name').then(({ data }) => setSites(data || []));
+    // Get employee's assigned site
+    supabase
+      .from('employee_sites')
+      .select('site_id, sites!site_id(name)')
+      .eq('employee_id', user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (data && data.site_id) {
+          setSites([{ id: data.site_id, name: data.sites.name }]);
+          setSelectedSite(data.site_id);
+        } else {
+          setSites([]);
+        }
+      });
 
-    // Load last clock-in for this user
+    // Load last clock-in
     supabase
       .from('in_logs')
       .select('time_in')
@@ -24,17 +36,16 @@ export default function ClockIn({ user }) {
   }, [user.id]);
 
   const handleClockIn = async () => {
-    if (!selectedSite) return alert('Please select a site');
+    if (!selectedSite) return alert('No site assigned');
     setLoading(true);
     const { error } = await supabase
       .from('in_logs')
       .insert({ user_id: user.id, site_id: selectedSite, time_in: new Date() });
 
-    if (error) {
-      alert('Error: ' + error.message);
-    } else {
+    if (error) alert('Error: ' + error.message);
+    else {
       setLastClock(new Date().toISOString());
-      alert('Clocked in successfully!');
+      alert('Clocked in!');
     }
     setLoading(false);
   };
@@ -49,23 +60,21 @@ export default function ClockIn({ user }) {
         </p>
       )}
 
-      <select
-        value={selectedSite}
-        onChange={(e) => setSelectedSite(e.target.value)}
-        className="w-full p-3 border border-gray-300 rounded mb-4 text-left"
-      >
-        <option value="">Select a Site</option>
-        {sites.map((site) => (
-          <option key={site.id} value={site.id}>
-            {site.name}
-          </option>
-        ))}
-      </select>
+      {sites.length > 0 ? (
+        <div className="mb-4">
+          <p className="text-sm text-gray-700 mb-2">Assigned Site:</p>
+          <div className="p-3 bg-gray-100 rounded font-medium">
+            {sites[0].name}
+          </div>
+        </div>
+      ) : (
+        <p className="text-red-600 mb-4">No site assigned. Contact admin.</p>
+      )}
 
       <button
         onClick={handleClockIn}
-        disabled={loading || !selectedSite}
-        className="w-full bg-primary text-white py-4 rounded text-xl font-semibold hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={loading || sites.length === 0}
+        className="w-full bg-primary text-white py-4 rounded text-xl font-semibold hover:bg-blue-800 disabled:opacity-50"
       >
         {loading ? 'Clocking In...' : 'CLOCK IN'}
       </button>
