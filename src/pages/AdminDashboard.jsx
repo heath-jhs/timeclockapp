@@ -1,7 +1,7 @@
 // src/pages/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../supabaseClient.js';   // ← CORRECTED PATH + .js extension
 
 export default function AdminDashboard() {
   const [inLogs, setInLogs] = useState([]);
