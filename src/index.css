@@ -17,4 +17,4 @@ code {
 }
 
 /* Custom styles for PWA */
-@apply text-gray-900;
+/* @apply removed — use class instead */
