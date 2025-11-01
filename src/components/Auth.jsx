@@ -1,7 +1,7 @@
-// MAGIC LINK ONLY — NO PIN — 2025-11-01
+// MAGIC LINK ONLY — PIN GONE FOREVER — 2025-11-01
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from './supabaseClient';
+import { supabase } from '../supabaseClient'; // CORRECT PATH
 
 export default function Auth() {
   const navigate = useNavigate();
