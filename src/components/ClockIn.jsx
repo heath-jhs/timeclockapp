@@ -46,7 +46,7 @@ export default function ClockIn({ user }) {
     if (!selectedSite) return alert('No site assigned');
     setLoading(true);
     const { error } = await supabase
-      .from('in_logs')
+      .from('clock_ins')
       .insert({ user_id: user.id, site_id: selectedSite, time_in: new Date() });
 
     if (error) alert('Error: ' + error.message);
@@ -61,7 +61,7 @@ export default function ClockIn({ user }) {
   const handleClockOut = async () => {
     setLoading(true);
     const { error } = await supabase
-      .from('in_logs')
+      .from('clock_ins')
       .update({ time_out: new Date() })
       .eq('user_id', user.id)
       .is('time_out', null);
