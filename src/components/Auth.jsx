@@ -1,3 +1,4 @@
+// FORCE DEPLOY — MAGIC LINK ONLY (2025-11-01)
 // src/components/Auth.jsx
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
