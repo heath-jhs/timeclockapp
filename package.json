@@ -18,9 +18,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
-    "postcss": "^8.4.38", // Or the latest compatible version
-    "tailwindcss": "^3.4.4", // Or the latest compatible version
-    "autoprefixer": "^10.4.19", // Also a good idea to update this
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "autoprefixer": "^10.4.19",
     "vite": "^5.4.8"
   }
 
