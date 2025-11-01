@@ -1,4 +1,4 @@
-// FORCE REBUILD — SITES LOADED — 2025-11-01
+// ClockIn.jsx — FULLY WORKING — GEOFENCING + MULTI-SITE
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
@@ -9,89 +9,152 @@ export default function ClockIn({ user }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Load assigned sites
   useEffect(() => {
-    supabase
-      .from('employee_sites')
-      .select('site_id, sites!inner(id, name, latitude, longitude, radius_meters)')
-      .eq('employee_id', user.id)
-      .then(({ data }) => {
-        const siteList = data || [];
-        setSites(siteList);
-        if (siteList.length === 1) setSelectedSite(siteList[0].site_id);
-        setLoading(false);
-      });
+    const fetchSites = async () => {
+      const { data, error } = await supabase
+        .from('employee_sites')
+        .select(`
+          site_id,
+          sites!inner (
+            id,
+            name,
+            latitude,
+            longitude,
+            radius_meters
+          )
+        `)
+        .eq('employee_id', user.id);
+
+      if (error) {
+        console.error('Site fetch error:', error);
+        setError('Failed to load sites');
+      } else {
+        setSites(data || []);
+        if (data && data.length === 1) {
+          setSelectedSite(data[0].site_id);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchSites();
   }, [user.id]);
 
+  // GPS
   useEffect(() => {
-    const watch = navigator.geolocation.watchPosition(
-      pos => setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      err => setError('GPS error: ' + err.message),
-      { enableHighAccuracy: true }
-    );
-    return () => navigator.geolocation.clearWatch(watch);
-  }, []);
-
-  const clockIn = async () => {
-    if (!selectedSite || !position) return setError('Select site + allow GPS');
-
-    const site = sites.find(s => s.site_id === parseInt(selectedSite)).sites;
-    const distance = haversine(position, { lat: site.latitude, lng: site.longitude });
-
-    if (distance > site.radius_meters) {
-      return setError(`Too far! Must be within ${site.radius_meters}m (at ${distance.toFixed(0)}m)`);
+    if (!navigator.geolocation) {
+      setError('Geolocation not supported');
+      return;
     }
 
-    const { error } = await supabase.from('clock_ins').insert({
-      user_id: user.id,
-      site_id: selectedSite,
-      time_in: new Date().toISOString(),
-      lat: position.lat,
-      lng: position.lng
-    });
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setPosition({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        });
+      },
+      (err) => setError('GPS denied: ' + err.message),
+      { enableHighAccuracy: true }
+    );
 
-    if (error) setError(error.message);
-    else alert('Clocked in at ' + site.name + '!');
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
+  const handleClockIn = async () => {
+    if (!selectedSite || !position) {
+      setError('Select site and allow GPS');
+      return;
+    }
+
+    const selected = sites.find(s => s.site_id === parseInt(selectedSite));
+    const site = selected.sites;
+
+    const distance = haversine(
+      { lat: position.lat, lng: position.lng },
+      { lat: site.latitude, lng: site.longitude }
+    );
+
+    if (distance > site.radius_meters) {
+      setError(`Too far! Must be within ${site.radius_meters}m (you are ${distance.toFixed(0)}m away)`);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('clock_ins')
+      .insert({
+        user_id: user.id,
+        site_id: selectedSite,
+        time_in: new Date().toISOString(),
+        lat: position.lat,
+        lng: position.lng
+      });
+
+    if (error) {
+      setError('Clock-in failed: ' + error.message);
+    } else {
+      alert(`Clocked in at ${site.name}!`);
+      setError('');
+    }
   };
 
+  // Haversine formula (meters)
   const haversine = (p1, p2) => {
-    const toRad = x => x * Math.PI / 180;
     const R = 6371000;
-    const dLat = toRad(p2.lat - p1.lat);
-    const dLng = toRad(p2.lng - p1.lng);
-    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(p1.lat)) * Math.cos(toRad(p2.lat)) * Math.sin(dLng/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+    const dLng = (p2.lng - p1.lng) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+      Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
   };
 
-  if (loading) return <p>Loading sites...</p>;
+  if (loading) return <p className="text-center">Loading sites...</p>;
 
   return (
-    <div className="p-6 max-w-md mx-auto bg-white rounded shadow">
-      <h1 className="text-2xl font-bold mb-4">Clock In</h1>
-      {error && <p className="text-red-600 mb-4">{error}</p>}
+    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-lg">
+      <h1 className="text-2xl font-bold text-center mb-6">Clock In</h1>
 
-      <select
-        value={selectedSite}
-        onChange={e => setSelectedSite(e.target.value)}
-        className="w-full p-2 border rounded mb-4"
-        disabled={sites.length === 0}
-      >
-        <option value="">Select Site</option>
-        {sites.map(s => (
-          <option key={s.site_id} value={s.site_id}>{s.sites.name}</option>
-        ))}
-      </select>
+      {error && <p className="text-red-600 text-center mb-4">{error}</p>}
 
-      {position && <p className="text-sm text-gray-600 mb-2">GPS: {position.lat.toFixed(5)}, {position.lng.toFixed(5)}</p>}
+      <div className="mb-4">
+        <select
+          value={selectedSite}
+          onChange={(e) => setSelectedSite(e.target.value)}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={sites.length === 0}
+        >
+          <option value="">Select Site</option>
+          {sites.map((s) => (
+            <option key={s.site_id} value={s.site_id}>
+              {s.sites.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {position && (
+        <p className="text-sm text-gray-600 text-center mb-4">
+          GPS: {position.lat.toFixed(5)}, {position.lng.toFixed(5)}
+        </p>
+      )}
 
       <button
-        onClick={clockIn}
+        onClick={handleClockIn}
         disabled={!selectedSite || !position}
-        className="w-full py-2 bg-green-600 text-white rounded disabled:opacity-50"
+        className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
       >
         Clock In (Geo-Verified)
       </button>
 
-      {sites.length === 0 && <p className="text-red-500 mt-4">No sites assigned. Contact admin.</p>}
+      {sites.length === 0 && (
+        <p className="text-red-500 text-center mt-4">
+          No sites assigned. Contact admin.
+        </p>
+      )}
     </div>
   );
 }
