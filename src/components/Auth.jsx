@@ -1,62 +1,74 @@
 // src/components/Auth.jsx
-import { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
-export default function Auth({ onLogin }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword451] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+export default function Auth() {
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  // AUTO-REDIRECT IF LOGGED IN
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate('/clockin', { replace: true });
+      }
+    };
+    checkSession();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        navigate('/clockin', { replace: true });
+      }
+    });
+
+    return () => listener?.subscription?.unsubscribe();
+  }, [navigate]);
+
+  // MAGIC LINK ONLY
+  const handleMagicLink = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    const { error, data } = isSignUp
-      ? await supabase.auth.signUp({ email, password })
-      : await supabase.auth.signInWithPassword({ email, password });
+    const email = e.target.email.value.trim();
+    if (!email) return;
 
-    if (error) alert(error.message);
-    else onLogin(data.user);
-    setLoading(false);
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin + '/clockin' },
+    });
+
+    if (error) {
+      alert('Error: ' + error.message);
+    } else {
+      alert('Magic link sent! Check your email.');
+    }
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow">
-      <h2 className="text-2xl font-bold mb-4">{isSignUp ? 'Sign Up' : 'Log In'}</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded-lg shadow">
+      <div className="text-center mb-6">
+        <div className="inline-block p-3 bg-blue-100 rounded-full">
+          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold mt-2">Time Clock Login</h1>
+      </div>
+
+      <form onSubmit={handleMagicLink} className="space-y-4">
         <input
           type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          name="email"
+          placeholder="your@email.com"
+          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
-          className="w-full p-2 border rounded"
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full p-2 border rounded"
         />
         <button
           type="submit"
-          disabled={loading}
-          className="w-full bg-primary text-white py-2 rounded hover:bg-blue-800"
+          className="w-full py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
         >
-          {loading ? 'Loading…' : isSignUp ? 'Sign Up' : 'Log In'}
+          Send Magic Link
         </button>
       </form>
-      <p className="mt-4 text-center">
-        <button
-          type="button"
-          onClick={() => setIsSignUp(!isSignUp)}
-          className="text-sm text-blue-600 hover:underline"
-        >
-          {isSignUp ? 'Already have an account? Log in' : "Don't have an account? Sign up"}
-        </button>
-      </p>
     </div>
   );
 }
