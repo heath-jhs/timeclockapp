@@ -1,6 +1,6 @@
 // src/pages/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, differenceInMinutes } from 'date-fns';
 import { supabase } from '../supabaseClient';
 import AssignSites from '../components/AssignSites';
 
@@ -15,6 +15,7 @@ export default function AdminDashboard() {
         .select(`
           id,
           time_in,
+          time_out,
           user_id,
           site_id,
           profiles!user_id(full_name, avatar_url),
@@ -34,13 +35,19 @@ export default function AdminDashboard() {
   }, []);
 
   const exportCSV = () => {
-    const headers = ['Employee', 'Email', 'Site', 'Time In'];
-    const rows = logs.map(log => [
-      log.profiles?.full_name || 'Unknown',
-      log.user_id,
-      log.sites?.name || 'Unknown',
-      format(new Date(log.time_in), 'PPpp')
-    ]);
+    const headers = ['Employee', 'Site', 'Time In', 'Time Out', 'Duration'];
+    const rows = logs.map(log => {
+      const duration = log.time_out 
+        ? `${Math.floor(differenceInMinutes(new Date(log.time_out), new Date(log.time_in)) / 60)}h ${differenceInMinutes(new Date(log.time_out), new Date(log.time_in)) % 60}m`
+        : '—';
+      return [
+        log.profiles?.full_name || 'Unknown',
+        log.sites?.name || 'Unknown',
+        format(new Date(log.time_in), 'PPpp'),
+        log.time_out ? format(new Date(log.time_out), 'PPpp') : '—',
+        duration
+      ];
+    });
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -80,37 +87,54 @@ export default function AdminDashboard() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Time In
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                  Time Out
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Duration
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {logs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      {log.profiles?.avatar_url ? (
-                        <img
-                          src={log.profiles.avatar_url}
-                          alt={log.profiles.full_name}
-                          className="w-8 h-8 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">
-                          ?
-                        </div>
-                      )}
-                      <span className="font-medium text-gray-900">
-                        {log.profiles?.full_name || 'Unknown'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell text-sm text-gray-600">
-                    {log.sites?.name || '—'}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                    {format(new Date(log.time_in), 'PPpp')}
-                  </td>
-                </tr>
-              ))}
+              {logs.map((log) => {
+                const duration = log.time_out 
+                  ? `${Math.floor(differenceInMinutes(new Date(log.time_out), new Date(log.time_in)) / 60)}h ${differenceInMinutes(new Date(log.time_out), new Date(log.time_in)) % 60}m`
+                  : '—';
+                return (
+                  <tr key={log.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        {log.profiles?.avatar_url ? (
+                          <img
+                            src={log.profiles.avatar_url}
+                            alt={log.profiles.full_name}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">
+                            ?
+                          </div>
+                        )}
+                        <span className="font-medium text-gray-900">
+                          {log.profiles?.full_name || 'Unknown'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell text-sm text-gray-600">
+                      {log.sites?.name || '—'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      {format(new Date(log.time_in), 'PPpp')}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
+                      {log.time_out ? format(new Date(log.time_out), 'PPpp') : '—'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      {duration}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
