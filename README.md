@@ -1,2 +1,2 @@
 # timeclockapp  
-[DEPLOY TRIGGER - IGNORE]
+<!-- REDEPLOY TRIGGER -->
