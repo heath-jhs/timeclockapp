@@ -13,28 +13,53 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setLoading(false);
     });
 
+    // Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => listener?.subscription?.unsubscribe();
   }, []);
 
-  if (loading) return <div className="p-8 text-center">Loading…</div>;
+  if (loading) {
+    return <div className="p-8 text-center">Loading…</div>;
+  }
 
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={user ? <Navigate to="/clockin" /> : <Auth onLogin={setUser} />} />
-        <Route path="/clockin" element={user ? <ClockIn user={user} /> : <Navigate to="/" />} />
-        <Route path="/admin" element={user ? <AdminDashboard /> : <Navigate to="/" />} />
-        <Route path="/profile" element={user ? <Profile user={user} /> : <Navigate to="/" />} />
-        <Route path="/settings" element={user ? <Settings /> : <Navigate to="/" />} />
+        {/* Root: Logged in → /clockin, else → Auth (magic link only) */}
+        <Route
+          path="/"
+          element={user ? <Navigate to="/clockin" replace /> : <Auth />}
+        />
+
+        {/* Protected Routes */}
+        <Route
+          path="/clockin"
+          element={user ? <ClockIn user={user} /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/admin"
+          element={user ? <AdminDashboard /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/profile"
+          element={user ? <Profile user={user} /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/settings"
+          element={user ? <Settings /> : <Navigate to="/" replace />}
+        />
+
+        {/* Catch-all redirect */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
