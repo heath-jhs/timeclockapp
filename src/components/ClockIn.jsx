@@ -1,3 +1,4 @@
+// FORCE REBUILD — SITES LOADED — 2025-11-01
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
