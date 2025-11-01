@@ -8,7 +8,6 @@ export default function ClockIn({ user }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Load assigned sites
   useEffect(() => {
     supabase
       .from('employee_sites')
@@ -22,7 +21,6 @@ export default function ClockIn({ user }) {
       });
   }, [user.id]);
 
-  // GPS
   useEffect(() => {
     const watch = navigator.geolocation.watchPosition(
       pos => setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
