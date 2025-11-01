@@ -27,7 +27,7 @@ export default function ClockIn({ user }) {
 
     // Load latest log
     supabase
-      .from('in_logs')
+      .from('clock_ins')
       .select('time_in, time_out')
       .eq('user_id', user.id)
       .order('time_in', { ascending: false })
