@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '../supabaseClient';
+import AssignSites from '../components/AssignSites';
 
 export default function AdminDashboard() {
   const [logs, setLogs] = useState([]);
@@ -66,7 +67,7 @@ export default function AdminDashboard() {
       {logs.length === 0 ? (
         <p className="text-center text-gray-500 py-8">No clock-in logs yet.</p>
       ) : (
-        <div className="overflow-x-auto shadow-md rounded-lg">
+        <div className="overflow-x-auto shadow-md rounded-lg mb-8">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -114,6 +115,12 @@ export default function AdminDashboard() {
           </table>
         </div>
       )}
+
+      {/* Site Assignment Section */}
+      <div className="mt-12">
+        <h2 className="text-xl font-bold mb-6">Assign Sites to Employees</h2>
+        <AssignSites />
+      </div>
     </div>
   );
 }
