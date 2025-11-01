@@ -1,78 +1,119 @@
 // src/pages/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { supabase } from '../supabaseClient.js';   // ← CORRECTED PATH + .js extension
+import { supabase } from '../supabaseClient';
 
 export default function AdminDashboard() {
-  const [inLogs, setInLogs] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    async function fetchInLogs() {
-      try {
-        const { data, error } = await supabase
-          .from('in_logs')
-          .select(`
-            *,
-            profiles(full_name),
-            sites(name)
-          `)
-          .order('time_in', { ascending: false });
+    const fetchLogs = async () => {
+      const { data, error } = await supabase
+        .from('in_logs')
+        .select(`
+          id,
+          time_in,
+          user_id,
+          site_id,
+          profiles!user_id(full_name, avatar_url),
+          sites!site_id(name)
+        `)
+        .order('time_in', { ascending: false });
 
-        if (error) throw error;
-        setInLogs(data || []);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+      if (error) {
+        console.error('Error fetching logs:', error);
+      } else {
+        setLogs(data || []);
       }
-    }
+      setLoading(false);
+    };
 
-    fetchInLogs();
+    fetchLogs();
   }, []);
 
-  if (loading) return <p className="p-4">Loading…</p>;
-  if (error) return <p className="p-4 text-red-600">Error: {error}</p>;
+  const exportCSV = () => {
+    const headers = ['Employee', 'Email', 'Site', 'Time In'];
+    const rows = logs.map(log => [
+      log.profiles?.full_name || 'Unknown',
+      log.user_id,
+      log.sites?.name || 'Unknown',
+      format(new Date(log.time_in), 'PPpp')
+    ]);
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clockin-logs-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+  };
+
+  if (loading) return <p className="p-6 text-center">Loading logs...</p>;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard – Clock-In Logs</h1>
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold">Clock-In Logs</h1>
+        <button
+          onClick={exportCSV}
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm font-medium"
+        >
+          📥 Export CSV
+        </button>
+      </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-300">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-4 py-2 text-left border-b">Employee</th>
-              <th className="px-4 py-2 text-left border-b">Site</th>
-              <th className="px-4 py-2 text-left border-b">Time In</th>
-            </tr>
-          </thead>
-          <tbody>
-            {inLogs.length === 0 ? (
+      {logs.length === 0 ? (
+        <p className="text-center text-gray-500 py-8">No clock-in logs yet.</p>
+      ) : (
+        <div className="overflow-x-auto shadow-md rounded-lg">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <td colSpan="3" className="px-4 py-2 text-center text-gray-500">
-                  No logs yet.
-                </td>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Employee
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                  Site
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Time In
+                </th>
               </tr>
-            ) : (
-              inLogs.map((inLog) => (
-                <tr key={inLog.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 border-b">
-                    {inLog.profiles?.full_name ?? '—'}
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {logs.map((log) => (
+                <tr key={log.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      {log.profiles?.avatar_url ? (
+                        <img
+                          src={log.profiles.avatar_url}
+                          alt={log.profiles.full_name}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">
+                          ?
+                        </div>
+                      )}
+                      <span className="font-medium text-gray-900">
+                        {log.profiles?.full_name || 'Unknown'}
+                      </span>
+                    </div>
                   </td>
-                  <td className="px-4 py-2 border-b">
-                    {inLog.sites?.name ?? '—'}
+                  <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell text-sm text-gray-600">
+                    {log.sites?.name || '—'}
                   </td>
-                  <td className="px-4 py-2 border-b">
-                    {format(new Date(inLog.time_in), 'PPpp')}
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    {format(new Date(log.time_in), 'PPpp')}
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
