@@ -11,7 +11,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchLogs = async () => {
       const { data, error } = await supabase
-        .from('in_logs')
+        .from('clock_ins')
         .select(`
           id,
           time_in,
