@@ -19,14 +19,15 @@ export default function Login() {
     };
     checkSession();
 
-  // Handle reset token from URL (recovery mode)
+    // Handle recovery token from URL
     const hash = window.location.hash.substring(1);
     if (hash) {
       const params = new URLSearchParams(hash);
       const type = params.get('type');
-      if (type === 'recovery') {
+      const accessToken = params.get('access_token');
+      if (type === 'recovery' && accessToken) {
         setIsReset(true);
-        setResetToken(params.get('access_token'));
+        setResetToken(accessToken);
         window.history.replaceState({}, '', '/');
       }
     }
@@ -38,7 +39,6 @@ export default function Login() {
     setMessage('');
 
     if (isReset && resetToken) {
-      // Update password with token
       const { error } = await supabase.auth.updateUser({ password });
       if (error) setMessage(`Error: ${error.message}`);
       else {
@@ -122,50 +122,38 @@ export default function Login() {
             />
           )}
 
+          {!resetToken && (
+            <input
+              type="email"
+              placeholder="you@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          )}
+
           <input
-            type="email"
-            placeholder="you@company.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="password"
+            placeholder={resetToken ? 'New Password (6+ characters)' : 'Password (6+ characters)'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             required
+            minLength={6}
             className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
-
-          {!isReset && (
-            <input
-              type="password"
-              placeholder="Password (6+ characters)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-          )}
-
-          {isReset && (
-            <input
-              type="password"
-              placeholder="New Password (6+ characters)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-          )}
 
           <button
             type="submit"
             disabled={loading}
             className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
-            {loading ? 'Processing...' : isReset ? 'Reset Password' : isSignup ? 'Create Account' : 'Log In'}
+            {loading ? 'Processing...' : resetToken ? 'Reset Password' : isReset ? 'Send Reset Link' : isSignup ? 'Create Account' : 'Log In'}
           </button>
         </form>
 
         <p className="mt-4 text-center text-sm">
-          {isReset ? 'Back to Log In' : isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+          {resetToken ? 'Back to Log In' : isReset ? 'Back to Log In' : isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
           <button
             type="button"
             onClick={() => {
@@ -177,11 +165,11 @@ export default function Login() {
             }}
             className="text-blue-600 hover:underline font-medium"
           >
-            {isReset ? 'Log In' : isSignup ? 'Log In' : 'Sign Up'}
+            {resetToken ? 'Log In' : isReset ? 'Log In' : isSignup ? 'Log In' : 'Sign Up'}
           </button>
         </p>
 
-        {!isSignup && !isReset && (
+        {!isSignup && !isReset && !resetToken && (
           <button
             type="button"
             onClick={() => setIsReset(true)}
