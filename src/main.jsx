@@ -2,7 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { supabase } from './supabase';
+import { supabase } from './supabaseClient.js';
 
 // Handle magic link hash
 const hash = window.location.hash.substring(1);
@@ -19,7 +19,6 @@ if (hash) {
   }
 }
 
-// Render
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
