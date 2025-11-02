@@ -11,7 +11,7 @@ function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Listen for auth changes — this fires INSTANTLY after magic link
+    // Only use onAuthStateChange — it fires when session is ready
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
@@ -20,6 +20,7 @@ function App() {
             .select('*')
             .eq('id', session.user.id)
             .single();
+
           setUser({ ...session.user, ...profile });
         } else {
           setUser(null);
@@ -30,10 +31,8 @@ function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Show login if no user
   if (!user) return <Login />;
 
-  // Show dashboard if user
   if (user.role === 'admin') return <AdminDashboard user={user} />;
   if (user.role === 'employee') {
     const CurrentView = window.location.pathname === '/history' ? EmployeeHistory : EmployeeDashboard;
