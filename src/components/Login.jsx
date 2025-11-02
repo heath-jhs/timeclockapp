@@ -133,15 +133,17 @@ export default function Login() {
             />
           )}
 
-          <input
-            type="password"
-            placeholder={resetToken ? 'New Password (6+ characters)' : 'Password (6+ characters)'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-          />
+          {(!isReset || resetToken) && (
+            <input
+              type="password"
+              placeholder={resetToken ? 'New Password (6+ characters)' : 'Password (6+ characters)'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          )}
 
           <button
             type="submit"
