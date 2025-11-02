@@ -1,3 +1,4 @@
+// src/pages/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { saveAs } from 'file-saver';
@@ -31,7 +32,6 @@ export default function AdminDashboard() {
         }
       )
       .subscribe();
-
     return () => supabase.removeChannel(channel);
   }, []);
 
@@ -105,7 +105,7 @@ export default function AdminDashboard() {
       <div className="mb-8 p-6 bg-gray-50 rounded">
         <h2 className="text-xl font-bold mb-4">Live Employee Locations</h2>
         <div style={{ height: 400 }} id="map"></div>
-        <script src={`https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_KEY&callback=initMap`} async defer></script>
+        <script src={`https://maps.googleapis.com/maps/api/js?key=AIzaSyB...YOUR_KEY_HERE...&callback=initMap`} async defer></script>
         <script>
           {`
             function initMap() {
@@ -116,7 +116,6 @@ export default function AdminDashboard() {
                 const marker = new google.maps.Marker({ position: pos, map });
                 markers[uid] = marker;
               });
-              // Real-time updates via Supabase
               const channel = supabase.channel('public:clock_ins')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'clock_ins', filter: 'time_out=is.null' }, payload => {
                   const rec = payload.new;
