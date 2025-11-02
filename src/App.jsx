@@ -12,38 +12,26 @@ export default function App() {
   const [role, setRole] = useState('employee');
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUser(session.user);
-        getRole(session.user.id);
-      }
-    });
-
+    // ONLY use onAuthStateChange — reliable after login
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         if (session) {
           setUser(session.user);
-          getRole(session.user.id);
+          const { data } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+          setRole(data?.role || 'employee');
         } else {
           setUser(null);
           setRole('employee');
-          // Redirect to login on logout
-          window.location.href = '/';
         }
       }
     );
 
     return () => listener.subscription.unsubscribe();
   }, []);
-
-  const getRole = async (userId) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-    setRole(data?.role || 'employee');
-  };
 
   if (!user) return <Login />;
 
