@@ -27,6 +27,8 @@ export default function App() {
         } else {
           setUser(null);
           setRole('employee');
+          // Redirect to login on logout
+          window.location.href = '/';
         }
       }
     );
