@@ -1,6 +1,6 @@
 // src/components/Login.jsx
 import { useState } from 'react';
-import { supabase } from '../supabase';
+import { supabase } from '../supabaseClient.js';
 
 export default function Login() {
   const [email, setEmail] = useState('');
