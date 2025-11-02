@@ -103,12 +103,17 @@ export default function AdminDashboard({ user }) {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/';
+  };
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <button
-          onClick={() => supabase.auth.signOut()}
+          onClick={handleLogout}
           className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
         >
           Logout
@@ -227,16 +232,4 @@ export default function AdminDashboard({ user }) {
               <tr key={emp.id}>
                 <td className="border p-2">{emp.email}</td>
                 <td className="border p-2">{emp.full_name}</td>
-                <td className="border p-2">
-                  <button className="bg-blue-500 text-white px-2 py-1 rounded text-sm hover:bg-blue-600">
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+                <td className="border p-2
