@@ -13,19 +13,22 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        fetchUserProfile(session.user);
+    // Handle hash from magic link
+    const handleHash = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (data.session) {
+        fetchUserProfile(data.session.user);
+        // Clean URL
+        window.history.replaceState({}, '', window.location.pathname);
       } else {
         setLoading(false);
       }
-    });
+    };
 
-    // Listen for auth changes (magic link, logout, etc.)
+    handleHash();
+
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth event:', event, session?.user?.email); // DEBUG
         if (session) {
           fetchUserProfile(session.user);
         } else {
@@ -40,17 +43,15 @@ function App() {
   }, []);
 
   const fetchUserProfile = async (sbUser) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('users')
       .select('*')
       .eq('id', sbUser.id)
       .single();
 
-    if (data && !error) {
+    if (data) {
       setUser({ ...sbUser, ...data });
       setRole(data.role);
-    } else {
-      console.error('User profile error:', error);
     }
     setLoading(false);
   };
