@@ -77,5 +77,90 @@ export default function AdminDashboard({ user }) {
       <div className="bg-white p-6 rounded-lg shadow mb-8">
         <h2 className="text-xl font-semibold mb-4">Add New Site</h2>
         <div className="grid grid-cols-2 gap-4 mb-4">
-          <input placeholder="Name" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} className="p-2 border rounded" />
-          <input placeholder="Address"
+          <input
+            placeholder="Name"
+            value={newSiteName}
+            onChange={e => setNewSiteName(e.target.value)}
+            className="p-2 border rounded"
+          />
+          <input
+            placeholder="Address"
+            value={newSiteAddress}
+            onChange={e => setNewSiteAddress(e.target.value)}
+            className="p-2 border rounded"
+          />
+          <input
+            placeholder="Latitude"
+            value={newSiteLat}
+            onChange={e => setNewSiteLat(e.target.value)}
+            className="p-2 border rounded"
+          />
+          <input
+            placeholder="Longitude"
+            value={newSiteLng}
+            onChange={e => setNewSiteLng(e.target.value)}
+            className="p-2 border rounded"
+          />
+        </div>
+        <button onClick={addSite} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+          Add Site
+        </button>
+      </div>
+
+      {/* Assign Employee */}
+      <div className="bg-white p-6 rounded-lg shadow mb-8">
+        <h2 className="text-xl font-semibold mb-4">Assign Employee to Site</h2>
+        <div className="flex gap-4 mb-4">
+          <select value={selectedSite} onChange={e => setSelectedSite(e.target.value)} className="p-2 border rounded flex-1">
+            <option value="">Select Site</option>
+            {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} className="p-2 border rounded flex-1">
+            <option value="">Select Employee</option>
+            {employees.map(e => <option key={e.id} value={e.id}>{e.email}</option>)}
+          </select>
+          <button onClick={assignEmployee} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            Assign
+          </button>
+        </div>
+      </div>
+
+      {/* Employee List */}
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h2 className="text-xl font-semibold mb-4">Employees</h2>
+        <table className="w-full">
+          <thead>
+            <tr className="border-b">
+              <th className="text-left py-2">Email</th>
+              <th className="text-left py-2">Name</th>
+              <th className="text-left py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {employees.map(emp => (
+              <tr key={emp.id} className="border-b">
+                <td className="py-2">{emp.email}</td>
+                <td className="py-2">{emp.name || '-'}</td>
+                <td className="py-2">
+                  <button
+                    onClick={() => openScheduleModal(emp)}
+                    className="bg-purple-600 text-white px-3 py-1 rounded text-sm mr-2 hover:bg-purple-700"
+                  >
+                    Set Schedule
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {showScheduleModal && (
+        <EmployeeScheduleModal
+          employee={modalEmployee}
+          onClose={() => setShowScheduleModal(false)}
+        />
+      )}
+    </div>
+  );
+}
