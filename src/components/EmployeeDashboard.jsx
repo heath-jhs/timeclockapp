@@ -13,27 +13,22 @@ export default function EmployeeDashboard({ user }) {
   const [trackingActive, setTrackingActive] = useState(false);
   const watchId = useRef(null);
 
-  // Load assigned sites
   useEffect(() => {
     const fetchSites = async () => {
       const { data } = await supabase
         .from('sites')
         .select('*')
         .contains('assignedEmployees', [user.id]);
-
       setSites(data || []);
     };
     fetchSites();
 
-    const channel = supabase
-      .channel('sites-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sites' }, () => fetchSites())
+    const channel = supabase.channel('sites')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sites' }, fetchSites)
       .subscribe();
-
     return () => supabase.removeChannel(channel);
   }, [user.id]);
 
-  // Load today’s attendance
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     const fetchAttendance = async () => {
@@ -42,46 +37,38 @@ export default function EmployeeDashboard({ user }) {
         .select('*')
         .eq('userId', user.id)
         .gte('clockIn', today);
-
       const active = data.find(r => !r.clockOut);
       setClockedIn(active || null);
       calculateDailyHours(data);
     };
     fetchAttendance();
 
-    const channel = supabase
-      .channel('attendance-changes')
+    const channel = supabase.channel('attendance')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance', filter: `userId=eq.${user.id}` }, fetchAttendance)
       .subscribe();
-
     return () => supabase.removeChannel(channel);
   }, [user.id]);
 
   const calculateDailyHours = (records) => {
     const totalMs = records.reduce((sum, r) => {
-      if (r.clockOut) {
-        return sum + (new Date(r.clockOut) - new Date(r.clockIn));
-      }
+      if (r.clockOut) return sum + (new Date(r.clockOut) - new Date(r.clockIn));
       return sum;
     }, 0);
     setDailyHours(totalMs / (1000 * 60 * 60));
   };
 
-  // Geofencing + Schedule
   useEffect(() => {
-    if (!('geolocation' in navigator)) return;
+    if (!navigator.geolocation) return;
 
     const checkSchedule = () => {
       const now = new Date();
       const day = format(now, 'EEE').toLowerCase().slice(0, 3);
       const sched = user.trackingSchedule?.[day] || { enabled: false };
       if (!sched.enabled) return false;
-
       const [sh, sm] = sched.start.split(':').map(Number);
       const [eh, em] = sched.end.split(':').map(Number);
       const start = setMinutes(setHours(now, sh), sm);
       const end = setMinutes(setHours(now, eh), em);
-
       return isWithinInterval(now, { start, end });
     };
 
@@ -110,11 +97,8 @@ export default function EmployeeDashboard({ user }) {
     const checkGeofence = async (pos) => {
       for (const site of sites) {
         const dist = getDistance(pos, site.location);
-        if (dist <= 100 && !clockedIn) {
-          await clockIn(site);
-        } else if (dist > 100 && clockedIn?.siteId === site.id) {
-          await clockOut();
-        }
+        if (dist <= 100 && !clockedIn) await clockIn(site);
+        else if (dist > 100 && clockedIn?.siteId === site.id) await clockOut();
       }
     };
 
@@ -143,38 +127,25 @@ export default function EmployeeDashboard({ user }) {
   const clockIn = async (site) => {
     const { data } = await supabase
       .from('attendance')
-      .insert({
-        userId: user.id,
-        siteId: site.id,
-        siteName: site.name,
-        clockIn: new Date().toISOString()
-      })
+      .insert({ userId: user.id, siteId: site.id, siteName: site.name, clockIn: new Date().toISOString() })
       .select()
       .single();
-
     setClockedIn(data);
   };
 
   const clockOut = async () => {
     if (!clockedIn) return;
-    await supabase
-      .from('attendance')
-      .update({ clockOut: new Date().toISOString() })
-      .eq('id', clockedIn.id);
+    await supabase.from('attendance').update({ clockOut: new Date().toISOString() }).eq('id', clockedIn.id);
     setClockedIn(null);
   };
 
-  const manualClockOut = async () => {
-    await clockOut();
-  };
+  const manualClockOut = async () => await clockOut();
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Employee Dashboard</h1>
-        <div className="text-sm">
-          {trackingActive ? 'Tracking Active' : 'Tracking Off'}
-        </div>
+        <div className="text-sm">{trackingActive ? 'Tracking Active' : 'Tracking Off'}</div>
       </div>
 
       <div className="bg-blue-50 p-4 rounded-lg mb-4">
