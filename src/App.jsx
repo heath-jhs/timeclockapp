@@ -12,20 +12,41 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check session on load
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        fetchUser(session.user);
-      } else {
-        setLoading(false);
-      }
-    });
+    // Check session
+    const checkSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      console.log('getSession:', data, error); // DEBUG
 
-    // Listen for auth changes
+      if (data.session) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', data.session.user.id)
+          .single();
+        console.log('Profile:', profile); // DEBUG
+
+        if (profile) {
+          setUser({ ...data.session.user, ...profile });
+        }
+      }
+      setLoading(false);
+    };
+
+    checkSession();
+
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        console.log('Auth event:', event, session?.user?.email); // DEBUG
         if (session) {
-          fetchUser(session.user);
+          supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+            .then(({ data: profile }) => {
+              setUser({ ...session.user, ...profile });
+              setLoading(false);
+            });
         } else {
           setUser(null);
           setLoading(false);
@@ -35,22 +56,6 @@ function App() {
 
     return () => listener.subscription.unsubscribe();
   }, []);
-
-  const fetchUser = async (sbUser) => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', sbUser.id)
-      .single();
-
-    if (data && !error) {
-      setUser({ ...sbUser, ...data });
-    } else {
-      console.error('User not found in DB:', error);
-      setUser(null);
-    }
-    setLoading(false);
-  };
 
   if (loading) return <div className="flex justify-center items-center h-screen text-xl">Loading...</div>;
   if (!user) return <Login />;
