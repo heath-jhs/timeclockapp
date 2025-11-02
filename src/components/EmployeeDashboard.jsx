@@ -44,7 +44,7 @@ export default function EmployeeDashboard({ user }) {
     fetchAttendance();
 
     const channel = supabase.channel('attendance')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance', filter: `userId=eq.${user.id}` }, fetchAttendance)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, fetchAttendance)
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, [user.id]);
@@ -76,10 +76,10 @@ export default function EmployeeDashboard({ user }) {
       if (watchId.current) return;
       setTrackingActive(true);
       watchId.current = navigator.geolocation.watchPosition(
-        async (pos) => {
+        (pos) => {
           const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setPosition(newPos);
-          if (checkSchedule()) await checkGeofence(newPos);
+          if (checkSchedule()) checkGeofence(newPos);
         },
         (err) => console.error(err),
         { enableHighAccuracy: true }
@@ -96,10 +96,19 @@ export default function EmployeeDashboard({ user }) {
 
     const checkGeofence = async (pos) => {
       for (const site of sites) {
-        const dist = getDistance(pos, site.location);
+        const dist = haversine(pos, site.location);
         if (dist <= 100 && !clockedIn) await clockIn(site);
         else if (dist > 100 && clockedIn?.siteId === site.id) await clockOut();
       }
+    };
+
+    const haversine = (p1, p2) => {
+      const toRad = (x) => x * Math.PI / 180;
+      const R = 6371000;
+      const dLat = toRad(p2.lat - p1.lat);
+      const dLon = toRad(p2.lng - p1.lng);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(p1.lat)) * Math.cos(toRad(p2.lat)) * Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     };
 
     if (checkSchedule()) startTracking();
@@ -107,7 +116,7 @@ export default function EmployeeDashboard({ user }) {
 
     const interval = setInterval(() => {
       checkSchedule() ? startTracking() : stopTracking();
-    }, 60_000);
+    }, 60000);
 
     return () => {
       clearInterval(interval);
@@ -115,19 +124,15 @@ export default function EmployeeDashboard({ user }) {
     };
   }, [user.trackingSchedule, sites, clockedIn]);
 
-  const getDistance = (p1, p2) => {
-    const R = 6371000;
-    const toRad = (x) => x * Math.PI / 180;
-    const dLat = toRad(p2.lat - p1.lat);
-    const dLon = toRad(p2.lng - p1.lng);
-    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(p1.lat)) * Math.cos(toRad(p2.lat)) * Math.sin(dLon/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  };
-
   const clockIn = async (site) => {
     const { data } = await supabase
       .from('attendance')
-      .insert({ userId: user.id, siteId: site.id, siteName: site.name, clockIn: new Date().toISOString() })
+      .insert({
+        userId: user.id,
+        siteId: site.id,
+        siteName: site.name,
+        clockIn: new Date().toISOString()
+      })
       .select()
       .single();
     setClockedIn(data);
@@ -135,71 +140,65 @@ export default function EmployeeDashboard({ user }) {
 
   const clockOut = async () => {
     if (!clockedIn) return;
-    await supabase.from('attendance').update({ clockOut: new Date().toISOString() }).eq('id', clockedIn.id);
+    await supabase
+      .from('attendance')
+      .update({ clockOut: new Date().toISOString() })
+      .eq('id', clockedIn.id);
     setClockedIn(null);
   };
 
-  const manualClockOut = async () => await clockOut();
-
   return (
     <div className="p-4 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Employee Dashboard</h1>
-        <div className="text-sm">{trackingActive ? 'Tracking Active' : 'Tracking Off'}</div>
-      </div>
+      <h1 className="text-2xl font-bold mb-4">Welcome, {user.email}</h1>
 
-      <div className="bg-blue-50 p-4 rounded-lg mb-4">
-        <p className="font-semibold">Today’s Hours: {dailyHours.toFixed(2)} hrs</p>
-        {clockedIn && <p className="text-green-600">Clocked in at: {clockedIn.siteName}</p>}
+      <div className="bg-blue-50 p-4 rounded-lg mb-6">
+        <p className="font-semibold">Today's Hours: {dailyHours.toFixed(2)} hrs</p>
+        <p className="text-sm">{trackingActive ? '🟢 Tracking Active' : '⚫ Tracking Off'}</p>
         {clockedIn && (
-          <button onClick={manualClockOut} className="mt-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
-            Manual Clock Out
-          </button>
+          <>
+            <p className="text-green-600 mt-2">Clocked in at: {clockedIn.siteName}</p>
+            <button
+              onClick={clockOut}
+              className="mt-2 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            >
+              Manual Clock Out
+            </button>
+          </>
         )}
       </div>
 
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-2">Assigned Sites</h2>
-        {sites.map(site => (
-          <div key={site.id} className="border p-3 rounded flex justify-between items-center mb-2">
-            <div>
-              <p className="font-medium">{site.name}</p>
-              <p className="text-sm text-gray-600">{site.address}</p>
-            </div>
-            <a href={`https://www.google.com/maps/dir/?api=1&destination=${site.location.lat},${site.location.lng}`} target="_blank" rel="noopener noreferrer" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">
-              Navigate
-            </a>
+        {sites.length === 0 ? (
+          <p>No sites assigned.</p>
+        ) : (
+          <div className="space-y-3">
+            {sites.map(site => (
+              <div key={site.id} className="border p-3 rounded flex justify-between items-center">
+                <div>
+                  <p className="font-medium">{site.name}</p>
+                  <p className="text-sm text-gray-600">{site.address}</p>
+                </div>
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${site.location.lat},${site.location.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                >
+                  Navigate
+                </a>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
       <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_KEY}>
         <GoogleMap
           mapContainerStyle={mapContainerStyle}
-          center={position || sites[0]?.location}
-          zoom={10}
+          center={position || { lat: 0, lng: 0 }}
+          zoom={15}
           onLoad={(map) => {
             if (sites.length > 0) {
               const bounds = new window.google.maps.LatLngBounds();
-              sites.forEach(s => bounds.extend(s.location));
-              if (position) bounds.extend(position);
-              map.fitBounds(bounds);
-            }
-          }}
-        >
-          {position && <Marker position={position} label="You" />}
-          {sites.map(site => (
-            <div key={site.id}>
-              <Marker position={site.location} title={site.name} />
-              <Circle center={site.location} radius={100} options={{ strokeColor: '#3b82f6', fillOpacity: 0.1 }} />
-            </div>
-          ))}
-        </GoogleMap>
-      </LoadScript>
-
-      <div className="mt-6">
-        <a href="/history" className="text-blue-600 hover:underline">View Clock History →</a>
-      </div>
-    </div>
-  );
-}
+              sites.forEach(s => bounds.extend(s.location
