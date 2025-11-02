@@ -14,28 +14,26 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
+          // Try to get profile, but don't wait if it's not there
           let profile = null;
-          let attempts = 0;
-
-          // Poll until profile exists
-          while (!profile && attempts < 10) {
+          try {
             const { data } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
-
-            if (data) {
-              profile = data;
-            } else {
-              await new Promise(resolve => setTimeout(resolve, 300));
-              attempts++;
-            }
+            profile = data;
+          } catch (e) {
+            console.log('Profile not found yet, continuing');
           }
 
-          if (profile) {
-            setUser({ ...session.user, ...profile });
-          }
+          // Always set user — profile is optional
+          const fullUser = {
+            ...session.user,
+            role: profile?.role || 'employee', // Default to employee
+            full_name: profile?.full_name || session.user.email.split('@')[0],
+          };
+          setUser(fullUser);
         } else {
           setUser(null);
         }
