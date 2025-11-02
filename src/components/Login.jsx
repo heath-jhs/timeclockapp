@@ -39,7 +39,7 @@ export default function Login() {
         password,
         options: {
           data: { full_name: fullName.trim() },
-          emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app',
+          emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app/*', // WILDCARD
         },
       });
       if (error) {
@@ -51,7 +51,7 @@ export default function Login() {
         setPassword('');
       }
     } else {
-      // LOG IN (only after confirmation)
+      // LOG IN
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -70,7 +70,7 @@ export default function Login() {
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email,
-      options: { emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app' },
+      options: { emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app/*' },
     });
     if (error) setMessage(`Error: ${error.message}`);
     else setMessage('Confirmation email resent!');
