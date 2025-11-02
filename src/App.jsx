@@ -9,52 +9,54 @@ import './index.css';
 
 function App() {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    // Check session on load
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        const { data } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        setUser({ ...session.user, ...data });
-        setRole(data.role);
+        fetchUser(session.user);
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
-    };
+    });
 
-    checkSession();
-
+    // Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (_event, session) => {
         if (session) {
-          const { data } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          setUser({ ...session.user, ...data });
-          setRole(data.role);
+          fetchUser(session.user);
         } else {
           setUser(null);
-          setRole(null);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  const fetchUser = async (sbUser) => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', sbUser.id)
+      .single();
+
+    if (data && !error) {
+      setUser({ ...sbUser, ...data });
+    } else {
+      console.error('User not found in DB:', error);
+      setUser(null);
+    }
+    setLoading(false);
+  };
+
   if (loading) return <div className="flex justify-center items-center h-screen text-xl">Loading...</div>;
   if (!user) return <Login />;
 
-  if (role === 'admin') return <AdminDashboard user={user} />;
-  if (role === 'employee') {
+  if (user.role === 'admin') return <AdminDashboard user={user} />;
+  if (user.role === 'employee') {
     const CurrentView = window.location.pathname === '/history' ? EmployeeHistory : EmployeeDashboard;
     return <CurrentView user={user} />;
   }
