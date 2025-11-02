@@ -12,10 +12,14 @@ export default function Login() {
     setLoading(true);
     setMessage('');
 
+    const redirectUrl = import.meta.env.DEV 
+      ? 'http://localhost:3000' 
+      : 'https://funny-dolphin-a34226.netlify.app';
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,  // ← THIS FIXES IT
+        emailRedirectTo: redirectUrl,
       },
     });
 
