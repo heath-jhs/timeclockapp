@@ -1,9 +1,5 @@
 import { useState, useEffect } from 'react';
-import { auth, db } from './firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import {
-  doc, getDoc, collection, query, where, onSnapshot, updateDoc, addDoc, serverTimestamp
-} from 'firebase/firestore';
+import { supabase } from './supabase';
 import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import EmployeeDashboard from './components/EmployeeDashboard';
@@ -16,25 +12,46 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...data });
-          setRole(data.role);
-        }
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        fetchUserProfile(session.user);
       } else {
-        setUser(null);
-        setRole(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return () => unsubscribe();
+
+    // Listen for auth changes
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session) {
+          fetchUserProfile(session.user);
+        } else {
+          setUser(null);
+          setRole(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    return () => listener.subscription.unsubscribe();
   }, []);
 
-  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  const fetchUserProfile = async (sbUser) => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', sbUser.id)
+      .single();
 
+    if (data && !error) {
+      setUser({ ...sbUser, ...data });
+      setRole(data.role);
+    }
+    setLoading(false);
+  };
+
+  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
   if (!user) return <Login />;
 
   if (role === 'admin') return <AdminDashboard user={user} />;
