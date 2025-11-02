@@ -7,7 +7,7 @@ import EmployeeDashboard from './components/EmployeeDashboard';
 import EmployeeHistory from './components/EmployeeHistory';
 import './index.css';
 
-function App() {
+export default function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -19,6 +19,7 @@ function App() {
             .select('*')
             .eq('id', session.user.id)
             .single();
+
           setUser({ ...session.user, ...profile });
         } else {
           setUser(null);
@@ -39,5 +40,3 @@ function App() {
 
   return <div>Unauthorized</div>;
 }
-
-export default App;
