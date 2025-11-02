@@ -11,7 +11,6 @@ function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Only use onAuthStateChange — it fires when session is ready
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
@@ -21,7 +20,11 @@ function App() {
             .eq('id', session.user.id)
             .single();
 
-          setUser({ ...session.user, ...profile });
+          // Use session.user.email (always exists) + profile data
+          setUser({ 
+            ...session.user,  // email, id, etc.
+            ...profile        // role, full_name, etc.
+          });
         } else {
           setUser(null);
         }
