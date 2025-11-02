@@ -122,7 +122,7 @@ export default function Login() {
             />
           )}
 
-          {!resetToken && (
+          {(!isReset || !resetToken) && (
             <input
               type="email"
               placeholder="you@company.com"
