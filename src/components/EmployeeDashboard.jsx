@@ -43,7 +43,7 @@ export default function EmployeeDashboard({ user }) {
           latitude,
           longitude,
           site.latitude,
-          site.longitude
+          longitude
         );
 
         if (distance > 100) {
@@ -81,12 +81,17 @@ export default function EmployeeDashboard({ user }) {
     return R * c;
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/';
+  };
+
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Employee Dashboard</h1>
         <button
-          onClick={() => supabase.auth.signOut()}
+          onClick={handleLogout}
           className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition"
         >
           Logout
