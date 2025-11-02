@@ -11,29 +11,29 @@ function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    console.log('App useEffect running');
+    let ignore = false;
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('onAuthStateChange:', event, session?.user?.email);
+        if (ignore) return; // ← IGNORE DUPLICATE
+
         if (session) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
-          console.log('Profile:', profile);
+
           setUser({ ...session.user, ...profile });
         } else {
           setUser(null);
         }
+        ignore = true; // ← PREVENT DOUBLE CALL
       }
     );
 
     return () => listener.subscription.unsubscribe();
   }, []);
-
-  console.log('User:', user);
 
   if (!user) return <Login />;
 
