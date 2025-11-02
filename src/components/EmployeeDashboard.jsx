@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { GoogleMap, LoadScript, Marker, Circle } from '@react-google-maps/api';
-import { format, startOfDay, isWithinInterval, setHours, setMinutes } from 'date-fns';
+import { format, isWithinInterval, setHours, setMinutes } from 'date-fns';
 
 const mapContainerStyle = { width: '100%', height: '300px' };
 
@@ -13,6 +13,7 @@ export default function EmployeeDashboard({ user }) {
   const [trackingActive, setTrackingActive] = useState(false);
   const watchId = useRef(null);
 
+  // Fetch assigned sites
   useEffect(() => {
     const fetchSites = async () => {
       const { data } = await supabase
@@ -29,6 +30,7 @@ export default function EmployeeDashboard({ user }) {
     return () => supabase.removeChannel(channel);
   }, [user.id]);
 
+  // Fetch today's attendance
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     const fetchAttendance = async () => {
@@ -57,6 +59,7 @@ export default function EmployeeDashboard({ user }) {
     setDailyHours(totalMs / (1000 * 60 * 60));
   };
 
+  // Geofencing + Schedule Tracking
   useEffect(() => {
     if (!navigator.geolocation) return;
 
@@ -153,7 +156,7 @@ export default function EmployeeDashboard({ user }) {
 
       <div className="bg-blue-50 p-4 rounded-lg mb-6">
         <p className="font-semibold">Today's Hours: {dailyHours.toFixed(2)} hrs</p>
-        <p className="text-sm">{trackingActive ? '🟢 Tracking Active' : '⚫ Tracking Off'}</p>
+        <p className="text-sm">{trackingActive ? 'Tracking Active' : 'Tracking Off'}</p>
         {clockedIn && (
           <>
             <p className="text-green-600 mt-2">Clocked in at: {clockedIn.siteName}</p>
@@ -196,9 +199,34 @@ export default function EmployeeDashboard({ user }) {
       <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_KEY}>
         <GoogleMap
           mapContainerStyle={mapContainerStyle}
-          center={position || { lat: 0, lng: 0 }}
+          center={position || sites[0]?.location || { lat: 0, lng: 0 }}
           zoom={15}
           onLoad={(map) => {
             if (sites.length > 0) {
               const bounds = new window.google.maps.LatLngBounds();
-              sites.forEach(s => bounds.extend(s.location
+              sites.forEach(s => bounds.extend(s.location));
+              if (position) bounds.extend(position);
+              map.fitBounds(bounds);
+            }
+          }}
+        >
+          {position && <Marker position={position} label="You" />}
+          {sites.map(site => (
+            <div key={site.id}>
+              <Marker position={site.location} title={site.name} />
+              <Circle
+                center={site.location}
+                radius={100}
+                options={{ strokeColor: '#3b82f6', fillOpacity: 0.1 }}
+              />
+            </div>
+          ))}
+        </GoogleMap>
+      </LoadScript>
+
+      <div className="mt-6">
+        <a href="/history" className="text-blue-600 hover:underline">View Clock History →</a>
+      </div>
+    </div>
+  );
+}
