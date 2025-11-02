@@ -1,4 +1,3 @@
-// src/App.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import Login from './components/Login';
@@ -33,20 +32,20 @@ function App() {
   }, []);
 
   const fetchUserProfile = async (sbUser) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('users')
       .select('*')
       .eq('id', sbUser.id)
       .single();
 
-    if (data && !error) {
+    if (data) {
       setUser({ ...sbUser, ...data });
       setRole(data.role);
     }
     setLoading(false);
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  if (loading) return <div className="flex justify-center items-center h-screen text-xl">Loading...</div>;
   if (!user) return <Login />;
 
   if (role === 'admin') return <AdminDashboard user={user} />;
