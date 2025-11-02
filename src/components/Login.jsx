@@ -33,7 +33,7 @@ export default function Login() {
     }
 
     if (isSignup) {
-      // SIGN UP + SEND CONFIRMATION EMAIL
+      // SIGN UP + SEND CONFIRMATION
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -45,13 +45,13 @@ export default function Login() {
       if (error) {
         setMessage(`Error: ${error.message}`);
       } else {
-        setMessage('Check your email! Click the link to confirm and log in.');
+        setMessage('Check your email! Click the link to confirm.');
         setIsSignup(false);
         setFullName('');
         setPassword('');
       }
     } else {
-      // LOG IN (only works after confirmation)
+      // LOG IN (only after confirmation)
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -62,6 +62,18 @@ export default function Login() {
         window.location.href = '/';
       }
     }
+    setLoading(false);
+  };
+
+  const handleResend = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app' },
+    });
+    if (error) setMessage(`Error: ${error.message}`);
+    else setMessage('Confirmation email resent!');
     setLoading(false);
   };
 
@@ -136,6 +148,16 @@ export default function Login() {
           >
             {message}
           </p>
+        )}
+
+        {message.includes('Check your email') && (
+          <button
+            onClick={handleResend}
+            disabled={loading}
+            className="mt-2 block w-full text-center text-blue-600 hover:underline text-sm"
+          >
+            Resend confirmation email
+          </button>
         )}
       </div>
     </div>
