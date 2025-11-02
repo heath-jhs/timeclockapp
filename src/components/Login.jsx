@@ -4,6 +4,7 @@ import { supabase } from '../supabase';
 
 export default function Login() {
   const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -12,45 +13,71 @@ export default function Login() {
     setLoading(true);
     setMessage('');
 
-    const redirectUrl = import.meta.env.DEV 
-      ? 'http://localhost:3000' 
-      : 'https://funny-dolphin-a34226.netlify.app';
+    if (!fullName.trim()) {
+      setMessage('Please enter your full name');
+      setLoading(false);
+      return;
+    }
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: redirectUrl,
+        emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app',
+        data: { full_name: fullName.trim() },
       },
     });
 
-    if (error) setMessage('Error: ' + error.message);
-    else setMessage('Check your email for magic link!');
+    if (error) {
+      setMessage(`Error: ${error.message}`);
+    } else {
+      setMessage('Check your email – magic link sent!');
+    }
     setLoading(false);
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-      <div className="p-8 bg-white rounded-lg shadow-lg w-96">
-        <h1 className="text-3xl font-bold mb-6 text-center text-blue-600">Time Clock</h1>
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg">
+        <h1 className="mb-6 text-center text-3xl font-bold text-blue-600">
+          Time Clock
+        </h1>
+
         <form onSubmit={handleLogin} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Full Name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            required
+            className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
+
           <input
             type="email"
             placeholder="you@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
+            className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white font-semibold p-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
+            className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
-            {loading ? 'Sending...' : 'Send Magic Link'}
+            {loading ? 'Sending…' : 'Send Magic Link'}
           </button>
         </form>
+
         {message && (
-          <p className={`mt-4 text-center text-sm ${message.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>
+          <p
+            className={`mt-4 text-center text-sm ${
+              message.startsWith('Error') || message.includes('name')
+                ? 'text-red-600'
+                : 'text-green-600'
+            }`}
+          >
             {message}
           </p>
         )}
