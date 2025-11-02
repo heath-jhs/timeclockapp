@@ -12,41 +12,32 @@ export default function App() {
 
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (session) {
-          // Try to get profile, but don't wait if it's not there
-          let profile = null;
-          try {
-            const { data } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            profile = data;
-          } catch (e) {
-            console.log('Profile not found yet, continuing');
-          }
-
-          // Always set user — profile is optional
-          const fullUser = {
-            ...session.user,
-            role: profile?.role || 'employee', // Default to employee
-            full_name: profile?.full_name || session.user.email.split('@')[0],
-          };
-          setUser(fullUser);
+          setUser(session.user);
         } else {
           setUser(null);
         }
       }
     );
 
+    // Check if session already exists
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setUser(session.user);
+      }
+    });
+
     return () => listener.subscription.unsubscribe();
   }, []);
 
   if (!user) return <Login />;
 
-  if (user.role === 'admin') return <AdminDashboard user={user} />;
-  if (user.role === 'employee') {
+  // Default to employee if no role
+  const role = user.role || 'employee';
+
+  if (role === 'admin') return <AdminDashboard user={user} />;
+  if (role === 'employee') {
     const CurrentView = window.location.pathname === '/history' ? EmployeeHistory : EmployeeDashboard;
     return <CurrentView user={user} />;
   }
