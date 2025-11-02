@@ -1,68 +1,49 @@
-// src/App.jsx
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './supabaseClient';
-import Auth from './components/Auth';
-import ClockIn from './components/ClockIn';
-import AdminDashboard from './pages/AdminDashboard';
-import Profile from './pages/Profile';
-import Settings from './pages/Settings';
+import { auth, db } from './firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import {
+  doc, getDoc, collection, query, where, onSnapshot, updateDoc, addDoc, serverTimestamp
+} from 'firebase/firestore';
+import Login from './components/Login';
+import AdminDashboard from './components/AdminDashboard';
+import EmployeeDashboard from './components/EmployeeDashboard';
+import EmployeeHistory from './components/EmployeeHistory';
+import './index.css';
 
 function App() {
   const [user, setUser] = useState(null);
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...data });
+          setRole(data.role);
+        }
+      } else {
+        setUser(null);
+        setRole(null);
+      }
       setLoading(false);
     });
-
-    // Listen for auth changes
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => listener?.subscription?.unsubscribe();
+    return () => unsubscribe();
   }, []);
 
-  if (loading) {
-    return <div className="p-8 text-center">Loading…</div>;
+  if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
+
+  if (!user) return <Login />;
+
+  if (role === 'admin') return <AdminDashboard user={user} />;
+  if (role === 'employee') {
+    const CurrentView = window.location.pathname === '/history' ? EmployeeHistory : EmployeeDashboard;
+    return <CurrentView user={user} />;
   }
 
-  return (
-    <BrowserRouter>
-      <Routes>
-        {/* Root: Logged in → /clockin, else → Auth (magic link only) */}
-        <Route
-          path="/"
-          element={user ? <Navigate to="/clockin" replace /> : <Auth />}
-        />
-
-        {/* Protected Routes */}
-        <Route
-          path="/clockin"
-          element={user ? <ClockIn user={user} /> : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/admin"
-          element={user ? <AdminDashboard /> : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/profile"
-          element={user ? <Profile user={user} /> : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/settings"
-          element={user ? <Settings /> : <Navigate to="/" replace />}
-        />
-
-        {/* Catch-all redirect */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
-  );
+  return <div>Unauthorized</div>;
 }
 
 export default App;
