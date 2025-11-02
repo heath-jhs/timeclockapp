@@ -104,8 +104,8 @@ export default function AdminDashboard({ user }) {
   };
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) window.location.href = '/';
+    await supabase.auth.signOut();
+    window.location.href = '/';
   };
 
   return (
@@ -148,100 +148,4 @@ export default function AdminDashboard({ user }) {
             className="p-2 border rounded"
             required
           />
-          <select
-            value={siteForm.state}
-            onChange={(e) => setSiteForm({ ...siteForm, state: e.target.value })}
-            className="p-2 border rounded"
-            required
-          >
-            <option value="">Select State</option>
-            {states.map((state) => (
-              <option key={state} value={state}>{state}</option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="ZIP Code (e.g., 90210)"
-            value={siteForm.zip_code}
-            onChange={(e) => setSiteForm({ ...siteForm, zip_code: e.target.value })}
-            className="p-2 border rounded md:col-span-2"
-            required
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-green-500 text-white p-2 rounded md:col-span-2 hover:bg-green-600 disabled:opacity-50 transition"
-          >
-            {loading ? 'Geocoding...' : 'Add Site'}
-          </button>
-        </form>
-        {geocodeError && <p className="text-red-500 mt-2">{geocodeError}</p>}
-      </div>
-
-      {/* Assign Employee to Site */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 className="text-xl font-semibold mb-4">Assign Employee to Site</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <select
-            value={selectedSite}
-            onChange={(e) => setSelectedSite(e.target.value)}
-            className="p-2 border rounded"
-          >
-            <option value="">Select Site</option>
-            {sites.map((site) => (
-              <option key={site.id} value={site.id}>
-                {site.name} ({site.city}, {site.state})
-              </option>
-            ))}
-          </select>
-          <select
-            value={selectedEmployee}
-            onChange={(e) => setSelectedEmployee(e.target.value)}
-            className="p-2 border rounded"
-          >
-            <option value="">Select Employee</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.full_name} ({emp.email})
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={handleAssignEmployee}
-            disabled={!selectedSite || !selectedEmployee}
-            className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:opacity-50 transition"
-          >
-            Assign
-          </button>
-        </div>
-      </div>
-
-      {/* Employees List */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Employees</h2>
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border p-2 text-left">Email</th>
-              <th className="border p-2 text-left">Name</th>
-              <th className="border p-2 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {employees.map((emp) => (
-              <tr key={emp.id}>
-                <td className="border p-2">{emp.email}</td>
-                <td className="border p-2">{emp.full_name}</td>
-                <td className="border p-2">
-                  <button className="bg-blue-500 text-white px-2 py-1 rounded text-sm hover:bg-blue-600">
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+          
