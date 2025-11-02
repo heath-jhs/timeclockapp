@@ -1,3 +1,4 @@
+// src/components/Login.jsx
 import { useState } from 'react';
 import { supabase } from '../supabase';
 
@@ -13,7 +14,9 @@ export default function Login() {
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin },
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,  // ← THIS FIXES IT
+      },
     });
 
     if (error) setMessage('Error: ' + error.message);
