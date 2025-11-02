@@ -1,3 +1,4 @@
+// src/App.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import Login from './components/Login';
@@ -12,15 +13,22 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Check initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) fetchUserProfile(session.user);
-      else setLoading(false);
+      if (session) {
+        fetchUserProfile(session.user);
+      } else {
+        setLoading(false);
+      }
     });
 
+    // Listen for auth changes (magic link, logout, etc.)
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session) fetchUserProfile(session.user);
-        else {
+      (event, session) => {
+        console.log('Auth event:', event, session?.user?.email); // DEBUG
+        if (session) {
+          fetchUserProfile(session.user);
+        } else {
           setUser(null);
           setRole(null);
           setLoading(false);
@@ -32,15 +40,17 @@ function App() {
   }, []);
 
   const fetchUserProfile = async (sbUser) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', sbUser.id)
       .single();
 
-    if (data) {
+    if (data && !error) {
       setUser({ ...sbUser, ...data });
       setRole(data.role);
+    } else {
+      console.error('User profile error:', error);
     }
     setLoading(false);
   };
