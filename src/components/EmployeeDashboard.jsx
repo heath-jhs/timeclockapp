@@ -5,7 +5,8 @@ import { supabase } from '../supabaseClient.js';
 export default function EmployeeDashboard() {
   const [user, setUser] = useState(null);
   const [site, setSite] = useState(null);
-  const [assignment, setAssignment] = useState(null); // Store for site_id
+  const [assignment, setAssignment] = useState(null);
+  const [isClockedIn, setIsClockedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -33,6 +34,16 @@ export default function EmployeeDashboard() {
             .single();
           if (siteError) throw siteError;
           setSite(siteData?.name);
+
+          const { data: latestClock, error: clockError } = await supabase
+            .from('clock_ins')
+            .select('id')
+            .eq('user_id', user.id)
+            .is('time_out', null)
+            .order('time_in', { ascending: false })
+            .limit(1);
+          if (clockError) throw clockError;
+          setIsClockedIn(!!latestClock?.length);
         }
 
         setLoading(false);
@@ -58,7 +69,30 @@ export default function EmployeeDashboard() {
       site_id: assignment.site_id,
     });
     if (error) alert(`Error clocking in: ${error.message}`);
-    else alert('Clocked in!');
+    else {
+      alert('Clocked in!');
+      setIsClockedIn(true);
+    }
+  };
+
+  const handleClockOut = async () => {
+    const { data: latestClock, error: findError } = await supabase
+      .from('clock_ins')
+      .select('id')
+      .eq('user_id', user.id)
+      .is('time_out', null)
+      .order('time_in', { ascending: false })
+      .limit(1);
+    if (findError || !latestClock.length) return alert('No active clock-in');
+    const { error } = await supabase
+      .from('clock_ins')
+      .update({ time_out: new Date().toISOString() })
+      .eq('id', latestClock[0].id);
+    if (error) alert(`Error clocking out: ${error.message}`);
+    else {
+      alert('Clocked out!');
+      setIsClockedIn(false);
+    }
   };
 
   if (loading) return <div>Loading...</div>;
@@ -72,7 +106,11 @@ export default function EmployeeDashboard() {
       {site ? (
         <div>
           <p>Assigned to: {site}</p>
-          <button onClick={handleClockIn} className="bg-blue-500 text-white px-4 py-2 rounded">Clock In</button>
+          {isClockedIn ? (
+            <button onClick={handleClockOut} className="bg-red-500 text-white px-4 py-2 rounded">Clock Out</button>
+          ) : (
+            <button onClick={handleClockIn} className="bg-blue-500 text-white px-4 py-2 rounded">Clock In</button>
+          )}
         </div>
       ) : (
         <p className="text-orange-500">Not assigned to any site</p>
