@@ -105,7 +105,8 @@ export default function AdminDashboard() {
       <div className="mb-8 p-6 bg-gray-50 rounded">
         <h2 className="text-xl font-bold mb-4">Live Employee Locations</h2>
         <div style={{ height: 400 }} id="map"></div>
-        {/* PASTE YOUR GOOGLE MAPS API KEY BELOW */
+        <script src={`https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_KEY}&callback=initMap`} async defer></script>
+        <script>
           {`
             function initMap() {
               const map = new google.maps.Map(document.getElementById('map'), { center: { lat: 0, lng: 0 }, zoom: 2 });
@@ -130,7 +131,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Export */}
-      <button onClick={exportHours} className="bg-purple-600 text-white px-6 py-2 rounded">
+      <button onClick={exportHours} className="mb-8 bg-purple-600 text-white px-6 py-2 rounded">
         Download Hours CSV
       </button>
     </div>
