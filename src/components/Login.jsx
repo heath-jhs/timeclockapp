@@ -1,5 +1,5 @@
 // src/components/Login.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
 export default function Login() {
@@ -9,6 +9,17 @@ export default function Login() {
   const [isSignup, setIsSignup] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        window.location.href = '/';
+      }
+    };
+    checkSession();
+  }, []);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -22,24 +33,34 @@ export default function Login() {
     }
 
     if (isSignup) {
+      // SIGN UP + SEND CONFIRMATION EMAIL
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName.trim() } },
+        options: {
+          data: { full_name: fullName.trim() },
+          emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app',
+        },
       });
-      if (error) setMessage(`Error: ${error.message}`);
-      else {
-        setMessage('Account created! Log in below.');
+      if (error) {
+        setMessage(`Error: ${error.message}`);
+      } else {
+        setMessage('Check your email! Click the link to confirm and log in.');
         setIsSignup(false);
         setFullName('');
         setPassword('');
       }
     } else {
+      // LOG IN (only works after confirmation)
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) setMessage(`Error: ${error.message}`);
+      if (error) {
+        setMessage(`Error: ${error.message} (Did you confirm your email?)`);
+      } else {
+        window.location.href = '/';
+      }
     }
     setLoading(false);
   };
