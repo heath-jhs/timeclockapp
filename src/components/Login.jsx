@@ -1,132 +1,137 @@
-// src/components/EmployeeDashboard.jsx
+// src/components/Login.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
-export default function EmployeeDashboard({ user }) {
-  const [site, setSite] = useState(null);
-  const [clockedIn, setClockedIn] = useState(false);
-  const [clockInTime, setClockInTime] = useState(null);
-  const [locationError, setLocationError] = useState('');
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [isSignup, setIsSignup] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
+  // Auto-redirect if already logged in
   useEffect(() => {
-    fetchAssignedSite();
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        window.location.href = '/';
+      }
+    };
+    checkSession();
   }, []);
 
-  const fetchAssignedSite = async () => {
-    const { data } = await supabase
-      .from('employee_sites')
-      .select('site_id')
-      .eq('employee_id', user.id)
-      .single();
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
 
-    if (data) {
-      const { data: siteData } = await supabase
-        .from('sites')
-        .select('*')
-        .eq('id', data.site_id)
-        .single();
-      setSite(siteData);
-    }
-  };
-
-  const handleClockIn = async () => {
-    setLocationError('');
-    if (!navigator.geolocation) {
-      setLocationError('Geolocation not supported');
+    if (isSignup && !fullName.trim()) {
+      setMessage('Please enter your full name');
+      setLoading(false);
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        const distance = calculateDistance(
-          latitude,
-          longitude,
-          site.latitude,
-          site.longitude
-        );
-
-        if (distance > 100) {
-          setLocationError('Too far from site');
-          return;
-        }
-
-        const { error } = await supabase
-          .from('clock_records')
-          .insert({
-            employee_id: user.id,
-            clock_in: new Date().toISOString(),
-            site_id: site.id
-          });
-
-        if (!error) {
-          setClockedIn(true);
-          setClockInTime(new Date());
-        }
-      },
-      () => setLocationError('Failed to get location')
-    );
-  };
-
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371000;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    if (isSignup) {
+      // SIGN UP
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName.trim() } },
+      });
+      if (error) {
+        setMessage(`Error: ${error.message}`);
+      } else {
+        setMessage('Account created! You can now log in.');
+        setIsSignup(false);
+        setFullName('');
+        setPassword('');
+      }
+    } else {
+      // LOG IN
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
+        setMessage(`Error: ${error.message}`);
+      } else {
+        window.location.href = '/';
+      }
+    }
+    setLoading(false);
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Employee Dashboard</h1>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition"
-        >
-          Logout
-        </button>
-      </div>
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg">
+        <h1 className="mb-6 text-center text-3xl font-bold text-blue-600">
+          Time Clock
+        </h1>
 
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Welcome, {user.full_name}</h2>
+        <form onSubmit={handleAuth} className="space-y-4">
+          {isSignup && (
+            <input
+              type="text"
+              placeholder="Full Name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          )}
 
-        {site ? (
-          <div className="mb-6">
-            <p className="font-medium">Assigned Site:</p>
-            <p>{site.name}</p>
-            <p className="text-sm text-gray-600">
-              {site.street_address}, {site.city}, {site.state} {site.zip_code}
-            </p>
-          </div>
-        ) : (
-          <p className="text-orange-600">Not assigned to any site</p>
-        )}
+          <input
+            type="email"
+            placeholder="you@company.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
 
-        {locationError && <p className="text-red-500 mb-4">{locationError}</p>}
+          <input
+            type="password"
+            placeholder="Password (6+ characters)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
 
-        <button
-          onClick={handleClockIn}
-          disabled={clockedIn || !site}
-          className={`w-full py-3 rounded font-semibold transition ${
-            clockedIn
-              ? 'bg-gray-400 cursor-not-allowed'
-              : site
-              ? 'bg-green-500 hover:bg-green-600 text-white'
-              : 'bg-gray-300 cursor-not-allowed text-gray-600'
-          }`}
-        >
-          {clockedIn ? 'Clocked In' : 'Clock In'}
-        </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+          >
+            {loading ? 'Processing...' : isSignup ? 'Create Account' : 'Log In'}
+          </button>
+        </form>
 
-        {clockInTime && (
-          <p className="mt-4 text-sm text-green-600">
-            Clocked in at {clockInTime.toLocaleTimeString()}
+        <p className="mt-4 text-center text-sm">
+          {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+          <button
+            type="button"
+            onClick={() => {
+              setIsSignup(!isSignup);
+              setMessage('');
+              setFullName('');
+              setPassword('');
+            }}
+            className="text-blue-600 hover:underline font-medium"
+          >
+            {isSignup ? 'Log In' : 'Sign Up'}
+          </button>
+        </p>
+
+        {message && (
+          <p
+            className={`mt-4 text-center text-sm ${
+              message.startsWith('Error') ? 'text-red-600' : 'text-green-600'
+            }`}
+          >
+            {message}
           </p>
         )}
       </div>
