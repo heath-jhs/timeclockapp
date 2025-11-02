@@ -10,16 +10,25 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Auto-redirect if already logged in
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        window.location.href = '/';
-      }
+      if (session) window.location.href = '/';
     };
     checkSession();
+
+    // Load reCAPTCHA
+    const script = document.createElement('script');
+    script.src = `https://www.google.com/recaptcha/api.js?render=${import.meta.env.VITE_RECAPTCHA_SITE_KEY}`;
+    document.body.appendChild(script);
   }, []);
+
+  const executeCaptcha = async () => {
+    return new Promise((resolve) => {
+      window.grecaptcha.execute(import.meta.env.VITE_RECAPTCHA_SITE_KEY, { action: 'submit' })
+        .then(token => resolve(token));
+    });
+  };
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -32,48 +41,39 @@ export default function Login() {
       return;
     }
 
+    const token = await executeCaptcha();
+
     if (isSignup) {
-      // SIGN UP + SEND CONFIRMATION
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { full_name: fullName.trim() },
-          emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app/*', // WILDCARD
+          emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app',
+          captchaToken: token,
         },
       });
+
       if (error) {
         setMessage(`Error: ${error.message}`);
       } else {
-        setMessage('Check your email! Click the link to confirm.');
+        setMessage('Check your email! Click the link to verify.');
         setIsSignup(false);
         setFullName('');
         setPassword('');
       }
     } else {
-      // LOG IN
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
       if (error) {
-        setMessage(`Error: ${error.message} (Did you confirm your email?)`);
+        setMessage(`Error: ${error.message}`);
       } else {
         window.location.href = '/';
       }
     }
-    setLoading(false);
-  };
-
-  const handleResend = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email,
-      options: { emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app/*' },
-    });
-    if (error) setMessage(`Error: ${error.message}`);
-    else setMessage('Confirmation email resent!');
     setLoading(false);
   };
 
@@ -141,23 +141,9 @@ export default function Login() {
         </p>
 
         {message && (
-          <p
-            className={`mt-4 text-center text-sm ${
-              message.startsWith('Error') ? 'text-red-600' : 'text-green-600'
-            }`}
-          >
+          <p className={`mt-4 text-center text-sm ${message.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
             {message}
           </p>
-        )}
-
-        {message.includes('Check your email') && (
-          <button
-            onClick={handleResend}
-            disabled={loading}
-            className="mt-2 block w-full text-center text-blue-600 hover:underline text-sm"
-          >
-            Resend confirmation email
-          </button>
         )}
       </div>
     </div>
