@@ -10,7 +10,19 @@ export default function ClockIn({ user }) {
 
   useEffect(() => {
     const fetchSites = async () => {
-      // Simple: Get site IDs
+      // Get all sites — no RLS
+      const { data: allSites, error: sitesError } = await supabase
+        .from('sites')
+        .select('id, name, latitude, longitude, radius_meters');
+
+      if (sitesError) {
+        setError('Failed to load sites');
+        console.error(sitesError);
+        setLoading(false);
+        return;
+      }
+
+      // Get user's assigned site IDs
       const { data: assignments, error: assignError } = await supabase
         .from('employee_sites')
         .select('site_id')
@@ -23,29 +35,11 @@ export default function ClockIn({ user }) {
         return;
       }
 
-      if (!assignments || assignments.length === 0) {
-        setLoading(false);
-        return;
-      }
+      const assignedIds = assignments ? assignments.map(a => a.site_id) : [];
+      const filteredSites = allSites.filter(s => assignedIds.includes(s.id));
 
-      // Get site details
-      const siteIds = assignments.map(a => a.site_id);
-      const { data: siteData, error: siteError } = await supabase
-        .from('sites')
-        .select('id, name, latitude, longitude, radius_meters')
-        .in('id', siteIds);
-
-      if (siteError) {
-        setError('Failed to load site details');
-        console.error(siteError);
-      } else {
-        const fullSites = assignments.map(assign => {
-          const site = siteData.find(s => s.id === assign.site_id);
-          return { ...assign, sites: site };
-        });
-        setSites(fullSites);
-        if (fullSites.length === 1) setSelectedSite(fullSites[0].site_id);
-      }
+      setSites(filteredSites);
+      if (filteredSites.length === 1) setSelectedSite(filteredSites[0].id);
       setLoading(false);
     };
 
@@ -64,7 +58,7 @@ export default function ClockIn({ user }) {
   const clockIn = async () => {
     if (!selectedSite || !position) return setError('Site + GPS required');
 
-    const site = sites.find(s => s.site_id === parseInt(selectedSite)).sites;
+    const site = sites.find(s => s.id === parseInt(selectedSite));
     const distance = haversine(position, { lat: site.latitude, lng: site.longitude });
 
     if (distance > site.radius_meters) {
@@ -106,7 +100,7 @@ export default function ClockIn({ user }) {
       >
         <option value="">Select Site</option>
         {sites.map(s => (
-          <option key={s.site_id} value={s.site_id}>{s.sites.name}</option>
+          <option key={s.id} value={s.id}>{s.name}</option>
         ))}
       </select>
 
