@@ -232,4 +232,16 @@ export default function AdminDashboard({ user }) {
               <tr key={emp.id}>
                 <td className="border p-2">{emp.email}</td>
                 <td className="border p-2">{emp.full_name}</td>
-                <td className="border p-2
+                <td className="border p-2">
+                  <button className="bg-blue-500 text-white px-2 py-1 rounded text-sm hover:bg-blue-600">
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
