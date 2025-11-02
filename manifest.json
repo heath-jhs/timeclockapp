@@ -1,19 +1,19 @@
 {
-  "name": "TimeClock App",
-  "short_name": "TimeClock",
-  "description": "Construction crew time & location tracker",
+  "name": "Time Clock",
+  "short_name": "Clock",
+  "description": "Auto time tracking with geofencing",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f9fafb",
-  "theme_color": "#1d4ed8",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
   "icons": [
     {
-      "src": "https://via.placeholder.com/192x192/1d4ed8/ffffff?text=TC",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://via.placeholder.com/512x512/1d4ed8/ffffff?text=TC",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
