@@ -12,21 +12,15 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        fetchUserProfile(session.user);
-      } else {
-        setLoading(false);
-      }
+      if (session) fetchUserProfile(session.user);
+      else setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        if (session) {
-          fetchUserProfile(session.user);
-        } else {
+        if (session) fetchUserProfile(session.user);
+        else {
           setUser(null);
           setRole(null);
           setLoading(false);
