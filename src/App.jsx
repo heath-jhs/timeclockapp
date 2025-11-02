@@ -9,22 +9,27 @@ import './index.css';
 
 function App() {
   const [user, setUser] = useState(null);
-  const [hasHandled, setHasHandled] = useState(false); // ← THIS LINE
 
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (hasHandled) return; // ← IGNORE SECOND CALL
-
         if (session) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+          // Wait for profile to be created by trigger
+          let attempts = 0;
+          while (attempts < 5) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
 
-          setUser({ ...session.user, ...profile });
-          setHasHandled(true); // ← MARK AS HANDLED
+            if (profile) {
+              setUser({ ...session.user, ...profile });
+              break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 0.5s
+            attempts++;
+          }
         } else {
           setUser(null);
         }
@@ -32,7 +37,7 @@ function App() {
     );
 
     return () => listener.subscription.unsubscribe();
-  }, [hasHandled]);
+  }, []);
 
   if (!user) return <Login />;
 
