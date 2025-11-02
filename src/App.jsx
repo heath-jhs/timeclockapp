@@ -12,42 +12,51 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ONLY use onAuthStateChange — getSession is unreliable after reload
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event, session?.user?.email);
+    let mounted = true;
 
-        if (session) {
+    const loadUser = async () => {
+      // Force multiple checks
+      for (let i = 0; i < 5; i++) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && mounted) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
-          console.log('Profile:', profile);
-
           if (profile) {
             setUser({ ...session.user, ...profile });
-          } else {
-            // Create default
-            const { data: newProfile } = await supabase
-              .from('profiles')
-              .insert({
-                id: session.user.id,
-                email: session.user.email,
-                role: 'employee'
-              })
-              .select()
-              .single();
-            setUser({ ...session.user, ...newProfile });
+            setLoading(false);
+            return;
           }
-        } else {
+        }
+        await new Promise(resolve => setTimeout(resolve, 500)); // Wait 0.5s
+      }
+      if (mounted) setLoading(false); // Timeout fallback
+    };
+
+    loadUser();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session && mounted) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          setUser({ ...session.user, ...profile });
+        } else if (mounted) {
           setUser(null);
         }
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     );
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   if (loading) return <div className="flex justify-center items-center h-screen text-xl">Loading...</div>;
