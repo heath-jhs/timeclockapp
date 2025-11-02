@@ -13,16 +13,14 @@ export default function Login() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    // Handle recovery token from URL first
-    const hash = window.location.hash.substring(1);
-    let isRecoveryMode = false;
-    if (hash) {
-      const params = new URLSearchParams(hash);
-      const type = params.get('type');
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
-      if (type === 'recovery' && accessToken && refreshToken) {
-        const setRecoverySession = async () => {
+    const handleRecovery = async () => {
+      const hash = window.location.hash.substring(1);
+      if (hash) {
+        const params = new URLSearchParams(hash);
+        const type = params.get('type');
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        if (type === 'recovery' && accessToken && refreshToken) {
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -31,22 +29,23 @@ export default function Login() {
             setMessage(`Error: ${error.message}`);
           } else {
             setIsRecovery(true);
-            isRecoveryMode = true;
           }
-        };
-        setRecoverySession();
-        window.history.replaceState({}, '', '/');
+          window.history.replaceState({}, '', '/');
+          return true; // Recovery mode active
+        }
       }
-    }
+      return false;
+    };
 
-    // Only check for existing session if not in recovery mode
-    if (!isRecoveryMode) {
-      const checkSession = async () => {
+    const init = async () => {
+      const inRecovery = await handleRecovery();
+      if (!inRecovery) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) window.location.href = '/';
-      };
-      checkSession();
-    }
+      }
+    };
+
+    init();
   }, []);
 
   const handleAuth = async (e) => {
