@@ -14,22 +14,12 @@ function App() {
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
-          // Wait for profile to be created by trigger
-          let attempts = 0;
-          while (attempts < 5) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-
-            if (profile) {
-              setUser({ ...session.user, ...profile });
-              break;
-            }
-            await new Promise(resolve => setTimeout(resolve, 500)); // Wait 0.5s
-            attempts++;
-          }
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          setUser({ ...session.user, ...profile });
         } else {
           setUser(null);
         }
