@@ -104,8 +104,8 @@ export default function AdminDashboard({ user }) {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/';
+    const { error } = await supabase.auth.signOut();
+    if (!error) window.location.href = '/';
   };
 
   return (
