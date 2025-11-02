@@ -105,7 +105,7 @@ export default function AdminDashboard() {
       <div className="mb-8 p-6 bg-gray-50 rounded">
         <h2 className="text-xl font-bold mb-4">Live Employee Locations</h2>
         <div style={{ height: 400 }} id="map"></div>
-        <script src={`https://maps.googleapis.com/maps/api/js?key=AIzaSyB...YOUR_KEY_HERE...&callback=initMap`} async defer></script>
+        <script src={`https://maps.googleapis.com/maps/api/js?key=REPLACE_WITH_YOUR_KEY&callback=initMap`} async defer></script>
         <script>
           {`
             function initMap() {
