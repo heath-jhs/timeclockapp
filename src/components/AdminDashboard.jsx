@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
+import { supabase } from '../supabaseClient.js';
 import EmployeeScheduleModal from './EmployeeScheduleModal';
 
 export default function AdminDashboard({ user }) {
