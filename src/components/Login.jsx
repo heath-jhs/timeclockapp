@@ -19,16 +19,14 @@ export default function Login() {
     };
     checkSession();
 
-    // Handle reset token from URL
+  // Handle reset token from URL (recovery mode)
     const hash = window.location.hash.substring(1);
     if (hash) {
       const params = new URLSearchParams(hash);
-      const accessToken = params.get('access_token');
       const type = params.get('type');
-      if (accessToken && type === 'recovery') {
-        supabase.auth.setSession({ access_token: accessToken });
-        setResetToken(accessToken);
+      if (type === 'recovery') {
         setIsReset(true);
+        setResetToken(params.get('access_token'));
         window.history.replaceState({}, '', '/');
       }
     }
@@ -40,6 +38,7 @@ export default function Login() {
     setMessage('');
 
     if (isReset && resetToken) {
+      // Update password with token
       const { error } = await supabase.auth.updateUser({ password });
       if (error) setMessage(`Error: ${error.message}`);
       else {
@@ -144,7 +143,7 @@ export default function Login() {
             />
           )}
 
-          {isReset && resetToken && (
+          {isReset && (
             <input
               type="password"
               placeholder="New Password (6+ characters)"
@@ -161,7 +160,7 @@ export default function Login() {
             disabled={loading}
             className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
-            {loading ? 'Processing...' : isReset ? 'Send Reset Link' : isSignup ? 'Create Account' : 'Log In'}
+            {loading ? 'Processing...' : isReset ? 'Reset Password' : isSignup ? 'Create Account' : 'Log In'}
           </button>
         </form>
 
