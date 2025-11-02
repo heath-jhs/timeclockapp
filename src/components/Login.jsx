@@ -19,14 +19,17 @@ export default function Login() {
     };
     checkSession();
 
-    // Check for reset token in URL hash
+    // Handle reset token from URL
     const hash = window.location.hash.substring(1);
     if (hash) {
       const params = new URLSearchParams(hash);
       const accessToken = params.get('access_token');
-      if (accessToken && params.get('type') === 'recovery') {
+      const type = params.get('type');
+      if (accessToken && type === 'recovery') {
+        supabase.auth.setSession({ access_token: accessToken });
         setResetToken(accessToken);
         setIsReset(true);
+        window.history.replaceState({}, '', '/');
       }
     }
   }, []);
@@ -43,7 +46,6 @@ export default function Login() {
         setMessage('Password updated! Log in now.');
         setIsReset(false);
         setResetToken(null);
-        window.history.replaceState({}, '', '/');
       }
       setLoading(false);
       return;
