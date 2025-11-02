@@ -16,21 +16,7 @@ export default function Login() {
       if (session) window.location.href = '/';
     };
     checkSession();
-
-    // Load reCAPTCHA (optional anti-bot)
-    if (import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
-      const script = document.createElement('script');
-      script.src = `https://www.google.com/recaptcha/api.js?render=${import.meta.env.VITE_RECAPTCHA_SITE_KEY}`;
-      document.body.appendChild(script);
-    }
   }, []);
-
-  const executeCaptcha = async () => {
-    if (!window.grecaptcha) return null;
-    return new Promise((resolve) => {
-      window.grecaptcha.execute(import.meta.env.VITE_RECAPTCHA_SITE_KEY, { action: 'submit' }).then(token => resolve(token));
-    });
-  };
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -43,8 +29,6 @@ export default function Login() {
       return;
     }
 
-    const token = await executeCaptcha();
-
     if (isSignup) {
       const { error } = await supabase.auth.signUp({
         email,
@@ -52,7 +36,6 @@ export default function Login() {
         options: {
           data: { full_name: fullName.trim() },
           emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app',
-          ...(token && { captchaToken: token }),
         },
       });
 
@@ -71,7 +54,7 @@ export default function Login() {
       });
 
       if (error) {
-        setMessage(`Error: ${error.message}`);
+        setMessage(`Error: ${error.message} (Did you verify your email?)`);
       } else {
         window.location.href = '/';
       }
