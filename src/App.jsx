@@ -11,20 +11,19 @@ function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
+    console.log('App useEffect running');
+
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('onAuthStateChange:', event, session?.user?.email);
         if (session) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
-
-          // Use session.user.email (always exists) + profile data
-          setUser({ 
-            ...session.user,  // email, id, etc.
-            ...profile        // role, full_name, etc.
-          });
+          console.log('Profile:', profile);
+          setUser({ ...session.user, ...profile });
         } else {
           setUser(null);
         }
@@ -33,6 +32,8 @@ function App() {
 
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  console.log('User:', user);
 
   if (!user) return <Login />;
 
