@@ -1,5 +1,5 @@
 // src/components/Login.jsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '../supabaseClient.js';
 
 export default function Login() {
@@ -10,54 +10,36 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  // Auto-redirect if already logged in
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        window.location.href = '/';
-      }
-    };
-    checkSession();
-  }, []);
-
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
     if (isSignup && !fullName.trim()) {
-      setMessage('Please enter your full name');
+      setMessage('Full name required');
       setLoading(false);
       return;
     }
 
     if (isSignup) {
-      // SIGN UP
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { full_name: fullName.trim() } },
       });
-      if (error) {
-        setMessage(`Error: ${error.message}`);
-      } else {
-        setMessage('Account created! You can now log in.');
+      if (error) setMessage(`Error: ${error.message}`);
+      else {
+        setMessage('Account created! Log in below.');
         setIsSignup(false);
         setFullName('');
         setPassword('');
       }
     } else {
-      // LOG IN
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) {
-        setMessage(`Error: ${error.message}`);
-      } else {
-        window.location.href = '/';
-      }
+      if (error) setMessage(`Error: ${error.message}`);
     }
     setLoading(false);
   };
