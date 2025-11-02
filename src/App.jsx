@@ -9,13 +9,12 @@ import './index.css';
 
 function App() {
   const [user, setUser] = useState(null);
+  const [hasHandled, setHasHandled] = useState(false); // ← THIS LINE
 
   useEffect(() => {
-    let ignore = false;
-
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (ignore) return; // ← IGNORE DUPLICATE
+        if (hasHandled) return; // ← IGNORE SECOND CALL
 
         if (session) {
           const { data: profile } = await supabase
@@ -25,15 +24,15 @@ function App() {
             .single();
 
           setUser({ ...session.user, ...profile });
+          setHasHandled(true); // ← MARK AS HANDLED
         } else {
           setUser(null);
         }
-        ignore = true; // ← PREVENT DOUBLE CALL
       }
     );
 
     return () => listener.subscription.unsubscribe();
-  }, []);
+  }, [hasHandled]);
 
   if (!user) return <Login />;
 
