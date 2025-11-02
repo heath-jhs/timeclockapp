@@ -17,16 +17,18 @@ export default function Login() {
     };
     checkSession();
 
-    // Load reCAPTCHA
-    const script = document.createElement('script');
-    script.src = `https://www.google.com/recaptcha/api.js?render=${import.meta.env.VITE_RECAPTCHA_SITE_KEY}`;
-    document.body.appendChild(script);
+    // Load reCAPTCHA (optional anti-bot)
+    if (import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
+      const script = document.createElement('script');
+      script.src = `https://www.google.com/recaptcha/api.js?render=${import.meta.env.VITE_RECAPTCHA_SITE_KEY}`;
+      document.body.appendChild(script);
+    }
   }, []);
 
   const executeCaptcha = async () => {
+    if (!window.grecaptcha) return null;
     return new Promise((resolve) => {
-      window.grecaptcha.execute(import.meta.env.VITE_RECAPTCHA_SITE_KEY, { action: 'submit' })
-        .then(token => resolve(token));
+      window.grecaptcha.execute(import.meta.env.VITE_RECAPTCHA_SITE_KEY, { action: 'submit' }).then(token => resolve(token));
     });
   };
 
@@ -50,7 +52,7 @@ export default function Login() {
         options: {
           data: { full_name: fullName.trim() },
           emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app',
-          captchaToken: token,
+          ...(token && { captchaToken: token }),
         },
       });
 
@@ -74,6 +76,18 @@ export default function Login() {
         window.location.href = '/';
       }
     }
+    setLoading(false);
+  };
+
+  const handleResend = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app' },
+    });
+    if (error) setMessage(`Error: ${error.message}`);
+    else setMessage('Confirmation email resent!');
     setLoading(false);
   };
 
@@ -144,6 +158,16 @@ export default function Login() {
           <p className={`mt-4 text-center text-sm ${message.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
             {message}
           </p>
+        )}
+
+        {message.includes('Check your email') && (
+          <button
+            onClick={handleResend}
+            disabled={loading}
+            className="mt-2 block w-full text-center text-blue-600 hover:underline text-sm"
+          >
+            Resend confirmation email
+          </button>
         )}
       </div>
     </div>
