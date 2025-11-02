@@ -7,6 +7,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [isSignup, setIsSignup] = useState(false);
+  const [isReset, setIsReset] = useState(false);
+  const [resetToken, setResetToken] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -16,12 +18,46 @@ export default function Login() {
       if (session) window.location.href = '/';
     };
     checkSession();
+
+    // Check for reset token in URL hash
+    const hash = window.location.hash.substring(1);
+    if (hash) {
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get('access_token');
+      if (accessToken && params.get('type') === 'recovery') {
+        setResetToken(accessToken);
+        setIsReset(true);
+      }
+    }
   }, []);
 
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+
+    if (isReset && resetToken) {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) setMessage(`Error: ${error.message}`);
+      else {
+        setMessage('Password updated! Log in now.');
+        setIsReset(false);
+        setResetToken(null);
+        window.history.replaceState({}, '', '/');
+      }
+      setLoading(false);
+      return;
+    }
+
+    if (isReset) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://funny-dolphin-a34226.netlify.app',
+      });
+      if (error) setMessage(`Error: ${error.message}`);
+      else setMessage('Check your email for reset link!');
+      setLoading(false);
+      return;
+    }
 
     if (isSignup && !fullName.trim()) {
       setMessage('Full name required');
@@ -38,26 +74,18 @@ export default function Login() {
           emailRedirectTo: 'https://funny-dolphin-a34226.netlify.app',
         },
       });
-
-      if (error) {
-        setMessage(`Error: ${error.message}`);
-      } else {
-        setMessage('Check your email! Click the link to verify.');
-        setIsSignup(false);
-        setFullName('');
-        setPassword('');
-      }
+      if (error) setMessage(`Error: ${error.message}`);
+      else setMessage('Check your email! Click the link to verify.');
+      setIsSignup(false);
+      setFullName('');
+      setPassword('');
     } else {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
-      if (error) {
-        setMessage(`Error: ${error.message} (Did you verify your email?)`);
-      } else {
-        window.location.href = '/';
-      }
+      if (error) setMessage(`Error: ${error.message}`);
+      else window.location.href = '/';
     }
     setLoading(false);
   };
@@ -102,30 +130,45 @@ export default function Login() {
             className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
 
-          <input
-            type="password"
-            placeholder="Password (6+ characters)"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-          />
+          {!isReset && (
+            <input
+              type="password"
+              placeholder="Password (6+ characters)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          )}
+
+          {isReset && resetToken && (
+            <input
+              type="password"
+              placeholder="New Password (6+ characters)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          )}
 
           <button
             type="submit"
             disabled={loading}
             className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
-            {loading ? 'Processing...' : isSignup ? 'Create Account' : 'Log In'}
+            {loading ? 'Processing...' : isReset ? 'Send Reset Link' : isSignup ? 'Create Account' : 'Log In'}
           </button>
         </form>
 
         <p className="mt-4 text-center text-sm">
-          {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+          {isReset ? 'Back to Log In' : isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
           <button
             type="button"
             onClick={() => {
+              setIsReset(false);
               setIsSignup(!isSignup);
               setMessage('');
               setFullName('');
@@ -133,9 +176,19 @@ export default function Login() {
             }}
             className="text-blue-600 hover:underline font-medium"
           >
-            {isSignup ? 'Log In' : 'Sign Up'}
+            {isReset ? 'Log In' : isSignup ? 'Log In' : 'Sign Up'}
           </button>
         </p>
+
+        {!isSignup && !isReset && (
+          <button
+            type="button"
+            onClick={() => setIsReset(true)}
+            className="mt-2 block w-full text-center text-blue-600 hover:underline text-sm"
+          >
+            Forgot Password?
+          </button>
+        )}
 
         {message && (
           <p className={`mt-4 text-center text-sm ${message.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
@@ -143,7 +196,7 @@ export default function Login() {
           </p>
         )}
 
-        {message.includes('Check your email') && (
+        {message.includes('Check your email') && !isReset && (
           <button
             onClick={handleResend}
             disabled={loading}
