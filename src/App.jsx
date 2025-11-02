@@ -13,48 +13,42 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Handle hash from magic link
-    const handleHash = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (data.session) {
-        fetchUserProfile(data.session.user);
-        // Clean URL
-        window.history.replaceState({}, '', window.location.pathname);
-      } else {
-        setLoading(false);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        setUser({ ...session.user, ...data });
+        setRole(data.role);
       }
+      setLoading(false);
     };
 
-    handleHash();
+    checkSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         if (session) {
-          fetchUserProfile(session.user);
+          const { data } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          setUser({ ...session.user, ...data });
+          setRole(data.role);
         } else {
           setUser(null);
           setRole(null);
-          setLoading(false);
         }
+        setLoading(false);
       }
     );
 
     return () => listener.subscription.unsubscribe();
   }, []);
-
-  const fetchUserProfile = async (sbUser) => {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', sbUser.id)
-      .single();
-
-    if (data) {
-      setUser({ ...sbUser, ...data });
-      setRole(data.role);
-    }
-    setLoading(false);
-  };
 
   if (loading) return <div className="flex justify-center items-center h-screen text-xl">Loading...</div>;
   if (!user) return <Login />;
