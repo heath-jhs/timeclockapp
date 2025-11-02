@@ -1,40 +1,81 @@
-// ... existing imports ...
 import { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, onSnapshot, addDoc, updateDoc, doc } from 'firebase/firestore';
-import EmployeeScheduleModal from './EmployeeScheduleModal'; // NEW
+import { supabase } from '../supabase';
+import EmployeeScheduleModal from './EmployeeScheduleModal';
 
 export default function AdminDashboard({ user }) {
-  // ... existing state ...
+  const [sites, setSites] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [newSiteName, setNewSiteName] = useState('');
+  const [newSiteAddress, setNewSiteAddress] = useState('');
+  const [newSiteLat, setNewSiteLat] = useState('');
+  const [newSiteLng, setNewSiteLng] = useState('');
+  const [selectedSite, setSelectedSite] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState('');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [modalEmployee, setModalEmployee] = useState(null);
+
+  // Load sites
+  useEffect(() => {
+    const fetchSites = async () => {
+      const { data } = await supabase.from('sites').select('*');
+      setSites(data || []);
+    };
+    fetchSites();
+
+    const channel = supabase.channel('sites')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sites' }, fetchSites)
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, []);
+
+  // Load employees
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      const { data } = await supabase.from('users').select('*').eq('role', 'employee');
+      setEmployees(data || []);
+    };
+    fetchEmployees();
+
+    const channel = supabase.channel('users')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users', filter: 'role=eq.employee' }, fetchEmployees)
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, []);
+
+  const addSite = async () => {
+    if (!newSiteName || !newSiteAddress || !newSiteLat || !newSiteLng) return;
+    await supabase.from('sites').insert({
+      name: newSiteName,
+      address: newSiteAddress,
+      location: { lat: parseFloat(newSiteLat), lng: parseFloat(newSiteLng) },
+      assignedEmployees: []
+    });
+    setNewSiteName('');
+    setNewSiteAddress('');
+    setNewSiteLat('');
+    setNewSiteLng('');
+  };
+
+  const assignEmployee = async () => {
+    if (!selectedSite || !selectedEmployee) return;
+    const site = sites.find(s => s.id === selectedSite);
+    const updated = [...new Set([...(site.assignedEmployees || []), selectedEmployee])];
+    await supabase.from('sites').update({ assignedEmployees: updated }).eq('id', selectedSite);
+    setSelectedEmployee('');
+  };
 
   const openScheduleModal = (emp) => {
-    setSelectedEmployee(emp);
+    setModalEmployee(emp);
     setShowScheduleModal(true);
   };
 
-  // In employee list render:
-  {employees.map(emp => (
-    <tr key={emp.id}>
-      <td>{emp.email}</td>
-      <td>{emp.name}</td>
-      <td>
-        <button
-          onClick={() => openScheduleModal(emp)}
-          className="bg-purple-600 text-white px-3 py-1 rounded text-sm mr-2"
-        >
-          Set Schedule
-        </button>
-        {/* existing assign button */}
-      </td>
-    </tr>
-  ))}
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
 
-  {showScheduleModal && (
-    <EmployeeScheduleModal
-      employee={selectedEmployee}
-      onClose={() => setShowScheduleModal(false)}
-    />
-  )}
-}
+      {/* Add Site */}
+      <div className="bg-white p-6 rounded-lg shadow mb-8">
+        <h2 className="text-xl font-semibold mb-4">Add New Site</h2>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <input placeholder="Name" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} className="p-2 border rounded" />
+          <input placeholder="Address"
