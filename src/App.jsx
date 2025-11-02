@@ -14,13 +14,28 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+          let profile = null;
+          let attempts = 0;
 
-          setUser({ ...session.user, ...profile });
+          // Poll until profile exists
+          while (!profile && attempts < 10) {
+            const { data } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+
+            if (data) {
+              profile = data;
+            } else {
+              await new Promise(resolve => setTimeout(resolve, 300));
+              attempts++;
+            }
+          }
+
+          if (profile) {
+            setUser({ ...session.user, ...profile });
+          }
         } else {
           setUser(null);
         }
