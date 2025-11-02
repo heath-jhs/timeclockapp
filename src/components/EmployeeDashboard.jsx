@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../supabase';
+import { supabase } from '../supabaseClient.js';
 import { GoogleMap, LoadScript, Marker, Circle } from '@react-google-maps/api';
 import { format, isWithinInterval, setHours, setMinutes } from 'date-fns';
 
