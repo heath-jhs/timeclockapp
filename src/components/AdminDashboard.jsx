@@ -25,22 +25,12 @@ export default function AdminDashboard({ user }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('*');
-        if (profilesError) throw new Error(`Profiles error: ${profilesError.message}`);
-        
-        const { data: authUsers, error: authError } = await supabase.schema('auth').from('users').select('id, email');
-        if (authError) throw new Error(`Auth users error: ${authError.message}`);
-        
-        const mergedUsers = profilesData.map(p => ({
-          ...p,
-          email: authUsers.find(u => u.id === p.id)?.email || 'N/A'
-        }));
-        setUsers(mergedUsers || []);
-        
+        const { data: usersData, error: usersError } = await supabase.from('profiles').select('id, full_name, email, is_admin');
+        if (usersError) throw new Error(`Profiles error: ${usersError.message}`);
+        setUsers(usersData || []);
         const { data: sitesData, error: sitesError } = await supabase.from('sites').select('*');
         if (sitesError) throw new Error(`Sites error: ${sitesError.message}`);
         setSites(sitesData || []);
-        
         const current = new Date().toISOString();
         const { data: assignData, error: assignError } = await supabase
           .from('employee_sites')
@@ -139,14 +129,8 @@ export default function AdminDashboard({ user }) {
       if (error) throw error;
       setInviteEmail('');
       alert('Invite sent! They can sign up via the email link.');
-      // Refresh users
-      const { data: profilesData } = await supabase.from('profiles').select('*');
-      const { data: authUsers } = await supabase.schema('auth').from('users').select('id, email');
-      const mergedUsers = profilesData.map(p => ({
-        ...p,
-        email: authUsers.find(u => u.id === p.id)?.email || 'N/A'
-      }));
-      setUsers(mergedUsers || []);
+      const { data: usersData } = await supabase.from('profiles').select('id, full_name, email, is_admin');
+      setUsers(usersData || []);
     } catch (err) {
       setError(err.message || 'Error inviting user');
     }
@@ -206,7 +190,7 @@ export default function AdminDashboard({ user }) {
               {users.length ? users.map(u => (
                 <tr key={u.id} className="hover:bg-gray-100">
                   <td className="border p-2">{u.full_name}</td>
-                  <td className="border p-2">{u.email}</td>
+                  <td className="border p-2">{u.email || 'N/A'}</td>
                   <td className="border p-2 text-center">
                     <input 
                       type="checkbox" 
