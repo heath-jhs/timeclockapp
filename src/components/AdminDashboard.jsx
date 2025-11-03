@@ -40,9 +40,10 @@ const AdminDashboard = () => {
     setUsersError('');
     try {
       const res = await fetch('/.netlify/functions/list-users');
+      console.log('list-users status:', res.status); // For debug
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Failed to fetch users: ' + res.status);
+        const errText = await res.text();
+        throw new Error(errText || 'Failed to fetch users: ' + res.status);
       }
       const data = await res.json();
       setUsers(data || []);
@@ -131,8 +132,8 @@ const AdminDashboard = () => {
         body: JSON.stringify({ userId: id }),
       });
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Failed to delete user: ' + res.status);
+        const errText = await res.text();
+        throw new Error(errText || 'Failed to delete user: ' + res.status);
       }
       fetchUsers();
     } catch (err) {
