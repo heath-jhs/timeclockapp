@@ -1,3 +1,4 @@
+// src/components/ForgotPassword.jsx
 import { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { Link } from 'react-router-dom';
@@ -12,7 +13,7 @@ export default function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: 'https://funny-dolphin-a34226.netlify.app/reset-password' });
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: 'https://funny-dolphin-a34226.netlify.app/' });
     if (resetError) setError(resetError.message);
     else setSuccess(true);
     setLoading(false);
