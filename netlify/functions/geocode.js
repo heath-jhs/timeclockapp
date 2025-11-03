@@ -6,15 +6,16 @@ exports.handler = async (event) => {
   try {
     const { address } = JSON.parse(event.body);
     if (!address) {
-      return { statusCode: 400, body: 'Missing address in request' };
+      return { statusCode: 400, body: JSON.stringify({ error: 'Missing address in request' }) };
     }
 
     const apiKey = process.env.GOOGLE_MAPS_KEY;
     if (!apiKey) {
-      return { statusCode: 500, body: 'Missing Google Maps API key' };
+      return { statusCode: 500, body: JSON.stringify({ error: 'Missing Google Maps API key' }) };
     }
 
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
+    const encodedAddress = encodeURIComponent(address);
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`;
     const response = await fetch(url);
     const data = await response.json();
 
@@ -26,6 +27,6 @@ exports.handler = async (event) => {
     return { statusCode: 200, body: JSON.stringify({ lat, lng }) };
   } catch (err) {
     console.error(err);
-    return { statusCode: 500, body: 'Server error' };
+    return { statusCode: 500, body: JSON.stringify({ error: 'Server error' }) };
   }
 };
