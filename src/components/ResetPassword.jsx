@@ -13,15 +13,12 @@ export default function ResetPassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('Full location:', location); // Debug: Check full URL/hash
-    const hash = location.hash.substring(1);
-    console.log('Hash:', hash); // Debug: Should show type=recovery&access_token=...
+    const hash = location.hash.substring(1); // Get hash without #
     const params = new URLSearchParams(hash);
-    const accessToken = params.get('access_token');
+    const tokenHash = params.get('token_hash');
     const type = params.get('type');
-    console.log('Parsed type:', type, 'access_token:', accessToken); // Debug: Verify values
-    if (type === 'recovery' && accessToken) {
-      setToken(accessToken);
+    if (type === 'recovery' && tokenHash) {
+      setToken(tokenHash);
     } else {
       setError('Invalid recovery link');
     }
