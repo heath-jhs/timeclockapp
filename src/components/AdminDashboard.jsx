@@ -31,7 +31,8 @@ const AdminDashboard = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address: siteAddress }),
       });
-      if (!res.ok) throw new Error('Geocode function error');
+      console.log('Full geocode response:', res); // Debug status/body
+      if (!res.ok) throw new Error('Geocode function error: ' + res.status);
       const { lat, lng } = await res.json();
       console.log('Geocode success:', lat, lng); // Debug
       const { error: insertError } = await supabase
