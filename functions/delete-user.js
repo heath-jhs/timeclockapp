@@ -8,14 +8,14 @@ exports.handler = async (event) => {
   if (!userId) {
     return { statusCode: 400, body: JSON.stringify({ message: 'Missing userId' }) };
   }
-  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-      detectSessionInUrl: false
-    }
-  });
   try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false
+      }
+    });
     const { error } = await supabase.auth.admin.deleteUser(userId);
     if (error) throw error;
     return { statusCode: 200, body: JSON.stringify({ message: 'User deleted' }) };
