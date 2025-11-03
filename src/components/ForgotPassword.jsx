@@ -1,6 +1,5 @@
-// src/components/ForgotPassword.jsx
 import { useState } from 'react';
-import { supabase } from '../supabaseClient.js';
+import { supabase } from '../supabaseClient';
 import { Link } from 'react-router-dom';
 
 export default function ForgotPassword() {
