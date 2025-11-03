@@ -7,7 +7,7 @@ const AdminDashboard = () => {
   const [sites, setSites] = useState([]);
   const [siteName, setSiteName] = useState('');
   const [siteAddress, setSiteAddress] = useState('');
-  const [loading'acquiesce, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
