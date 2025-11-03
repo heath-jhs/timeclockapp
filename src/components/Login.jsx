@@ -1,6 +1,5 @@
-// src/components/Login.jsx
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient.js';
+import { supabase } from '../supabaseClient';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 export default function Login() {
