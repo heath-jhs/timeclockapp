@@ -1,54 +1,32 @@
-// MAGIC LINK ONLY — PIN GONE FOREVER — 2025-11-01
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabaseClient'; // CORRECT PATH
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from './supabaseClient'; // Adjust path if supabaseClient is elsewhere
 
-export default function Auth() {
-  const navigate = useNavigate();
+const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) navigate('/clockin', { replace: true });
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
     };
-    check();
+  }, []);
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') navigate('/clockin', { replace: true });
-    });
+  const value = { user, loading };
 
-    return () => listener?.subscription?.unsubscribe();
-  }, [navigate]);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
 
-  const sendLink = async (e) => {
-    e.preventDefault();
-    const email = e.target.email.value.trim();
-    if (!email) return;
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin }
-    });
-
-    if (error) alert('Error: ' + error.message);
-    else alert('Magic link sent! Check email.');
-  };
-
-  return (
-    <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded-lg shadow text-center">
-      <h1 className="text-2xl font-bold mb-6">Time Clock Login</h1>
-      <form onSubmit={sendLink} className="space-y-4">
-        <input
-          type="email"
-          name="email"
-          placeholder="your@email.com"
-          className="w-full px-4 py-2 border rounded"
-          required
-        />
-        <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded">
-          Send Magic Link
-        </button>
-      </form>
-    </div>
-  );
-}
+export const useAuth = () => useContext(AuthContext);
