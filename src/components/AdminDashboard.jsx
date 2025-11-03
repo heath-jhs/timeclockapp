@@ -20,11 +20,14 @@ export default function AdminDashboard({ user }) {
   const [endDate, setEndDate] = useState('');
   const [reports, setReports] = useState([]);
   const [activeAssignments, setActiveAssignments] = useState([]);
+  const [inviteEmail, setInviteEmail] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data: usersData, error: usersError } = await supabase.from('profiles').select('*');
+        const { data: usersData, error: usersError } = await supabase
+          .from('profiles')
+          .select('*, auth_users: id (email)');  // Join to get email from auth.users
         if (usersError) throw new Error(`Profiles error: ${usersError.message}`);
         setUsers(usersData || []);
         const { data: sitesData, error: sitesError } = await supabase.from('sites').select('*');
@@ -110,6 +113,32 @@ export default function AdminDashboard({ user }) {
     }
   };
 
+  const handleToggleAdmin = async (userId, currentIsAdmin) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_admin: !currentIsAdmin })
+      .eq('id', userId);
+    if (error) setError(error.message || 'Error updating admin status');
+    else {
+      setUsers(users.map(u => u.id === userId ? { ...u, is_admin: !currentIsAdmin } : u));
+    }
+  };
+
+  const handleInviteUser = async (e) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase.auth.inviteUserByEmail(inviteEmail);
+      if (error) throw error;
+      setInviteEmail('');
+      alert('Invite sent! They can sign up via the email link.');
+      // Refresh users after invite (new profile creates on signup)
+      const { data: usersData } = await supabase.from('profiles').select('*, auth_users: id (email)');
+      setUsers(usersData || []);
+    } catch (err) {
+      setError(err.message || 'Error inviting user');
+    }
+  };
+
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) console.error('Logout error:', error);
@@ -140,8 +169,42 @@ export default function AdminDashboard({ user }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white shadow-lg rounded-lg p-6">
-          <h2 className="text-2xl font-bold mb-4">Users</h2>
-          <ul className="list-disc pl-5">{users.length ? users.map(u => <li key={u.id} className="mb-2">{u.full_name}</li>) : <li>No users yet</li>}</ul>
+          <h2 className="text-2xl font-bold mb-4">User Management</h2>
+          <form onSubmit={handleInviteUser} className="mb-4">
+            <input 
+              type="email" 
+              placeholder="Enter email to invite" 
+              value={inviteEmail} 
+              onChange={(e) => setInviteEmail(e.target.value)} 
+              className="border p-2 w-full mb-2" 
+              required 
+            />
+            <button type="submit" className="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 w-full">Invite New User</button>
+          </form>
+          <table className="w-full border">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="border p-2">Full Name</th>
+                <th className="border p-2">Email</th>
+                <th className="border p-2">Admin</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.length ? users.map(u => (
+                <tr key={u.id} className="hover:bg-gray-100">
+                  <td className="border p-2">{u.full_name}</td>
+                  <td className="border p-2">{u.auth_users?.email || 'N/A'}</td>
+                  <td className="border p-2 text-center">
+                    <input 
+                      type="checkbox" 
+                      checked={u.is_admin} 
+                      onChange={() => handleToggleAdmin(u.id, u.is_admin)} 
+                    />
+                  </td>
+                </tr>
+              )) : <tr><td colSpan="3" className="border p-2 text-center">No users yet</td></tr>}
+            </tbody>
+          </table>
         </div>
         <div className="bg-white shadow-lg rounded-lg p-6">
           <h2 className="text-2xl font-bold mb-4">Sites</h2>
@@ -163,7 +226,7 @@ export default function AdminDashboard({ user }) {
         <form onSubmit={handleAssign} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <select value={assignEmployeeId} onChange={(e) => setAssignEmployeeId(e.target.value)} className="border p-2" required>
             <option value="">Select Employee</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            {users.filter(u => !u.is_admin).map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}  {/* Filter out admins for assignments */}
           </select>
           <select value={assignSiteId} onChange={(e) => setAssignSiteId(e.target.value)} className="border p-2" required>
             <option value="">Select Site</option>
