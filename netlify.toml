@@ -1,8 +1,11 @@
 [build]
   command = "npm run build"
-  publish = "dist"
+  functions = "netlify/functions"
+  publish = "dist"  # Adjust if your build output is different, e.g., "build" for Vite
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[dev]
+  command = "npm start"
+  port = 8888
+
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
