@@ -1,6 +1,5 @@
-// src/components/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient.js';
+import { supabase } from '../supabaseClient';
 
 export default function AdminDashboard({ user }) {
   const [users, setUsers] = useState([]);
