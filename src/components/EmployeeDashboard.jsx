@@ -1,6 +1,5 @@
-// src/components/EmployeeDashboard.jsx
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient.js';
+import { supabase } from '../supabaseClient';
 
 export default function EmployeeDashboard() {
   const [user, setUser] = useState(null);
