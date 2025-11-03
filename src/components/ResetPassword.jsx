@@ -8,17 +8,20 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  const [token, setToken] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const hash = location.hash.substring(1); // Get hash without #
+    const hash = location.hash.substring(1);
     const params = new URLSearchParams(hash);
-    const tokenHash = params.get('token_hash');
     const type = params.get('type');
-    if (type === 'recovery' && tokenHash) {
-      setToken(tokenHash);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    if (type === 'recovery' && accessToken && refreshToken) {
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      }).catch(err => setError(err.message || 'Error setting session'));
     } else {
       setError('Invalid recovery link');
     }
@@ -29,8 +32,6 @@ export default function ResetPassword() {
     setLoading(true);
     setError(null);
     try {
-      const { error: verifyError } = await supabase.auth.verifyOtp({ token_hash: token, type: 'recovery' });
-      if (verifyError) throw verifyError;
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
       if (updateError) throw updateError;
       setSuccess(true);
@@ -42,7 +43,7 @@ export default function ResetPassword() {
     }
   };
 
-  if (!token) return <div className="text-red-500">Error: {error}</div>;
+  if (error) return <div className="text-red-500">Error: {error}</div>;
   if (success) return <div>Password reset! Redirecting to login...</div>;
 
   return (
@@ -52,7 +53,6 @@ export default function ResetPassword() {
         <input type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="border p-2 m-2" required />
         <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded" disabled={loading}>Reset</button>
       </form>
-      {error && <div className="text-red-500">Error: {error}</div>}
       {loading && <div>Loading...</div>}
     </div>
   );
