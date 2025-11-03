@@ -25,18 +25,26 @@ export default function AdminDashboard({ user }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data: usersData, error: usersError } = await supabase
-          .from('profiles')
-          .select('*, auth_users: id (email)');  // Join to get email from auth.users
-        if (usersError) throw new Error(`Profiles error: ${usersError.message}`);
-        setUsers(usersData || []);
+        const { data: profilesData, error: profilesError } = await supabase.from('profiles').select('*');
+        if (profilesError) throw new Error(`Profiles error: ${profilesError.message}`);
+        
+        const { data: authUsers, error: authError } = await supabase.schema('auth').from('users').select('id, email');
+        if (authError) throw new Error(`Auth users error: ${authError.message}`);
+        
+        const mergedUsers = profilesData.map(p => ({
+          ...p,
+          email: authUsers.find(u => u.id === p.id)?.email || 'N/A'
+        }));
+        setUsers(mergedUsers || []);
+        
         const { data: sitesData, error: sitesError } = await supabase.from('sites').select('*');
         if (sitesError) throw new Error(`Sites error: ${sitesError.message}`);
         setSites(sitesData || []);
+        
         const current = new Date().toISOString();
         const { data: assignData, error: assignError } = await supabase
           .from('employee_sites')
-          .select('*, profiles!employee_id(full_name), sites!site_id(name, latitude, longitude)')
+          .select('*, profiles!employee_sites_employee_id_fkey(full_name), sites!employee_sites_site_id_fkey(name, latitude, longitude)')
           .or(`end_datetime.gt.${current},end_datetime.is.null`);
         if (assignError) throw assignError;
         setActiveAssignments(assignData || []);
@@ -88,7 +96,7 @@ export default function AdminDashboard({ user }) {
       const current = new Date().toISOString();
       const { data: assignData } = await supabase
         .from('employee_sites')
-        .select('*, profiles!employee_id(full_name), sites!site_id(name, latitude, longitude)')
+        .select('*, profiles!employee_sites_employee_id_fkey(full_name), sites!employee_sites_site_id_fkey(name, latitude, longitude)')
         .or(`end_datetime.gt.${current},end_datetime.is.null`);
       setActiveAssignments(assignData || []);
     }
@@ -96,7 +104,7 @@ export default function AdminDashboard({ user }) {
 
   const handleGenerateReport = async (e) => {
     e.preventDefault();
-    let query = supabase.from('clock_ins').select('*, profiles!user_id(full_name)').eq('profiles.is_admin', 'false');
+    let query = supabase.from('clock_ins').select('*, profiles!clock_ins_user_id_fkey(full_name)').eq('profiles.is_admin', 'false');
     if (startDate) query = query.gte('time_in', startDate);
     if (endDate) query = query.lte('time_in', endDate);
     const { data, error } = await query;
@@ -131,9 +139,14 @@ export default function AdminDashboard({ user }) {
       if (error) throw error;
       setInviteEmail('');
       alert('Invite sent! They can sign up via the email link.');
-      // Refresh users after invite (new profile creates on signup)
-      const { data: usersData } = await supabase.from('profiles').select('*, auth_users: id (email)');
-      setUsers(usersData || []);
+      // Refresh users
+      const { data: profilesData } = await supabase.from('profiles').select('*');
+      const { data: authUsers } = await supabase.schema('auth').from('users').select('id, email');
+      const mergedUsers = profilesData.map(p => ({
+        ...p,
+        email: authUsers.find(u => u.id === p.id)?.email || 'N/A'
+      }));
+      setUsers(mergedUsers || []);
     } catch (err) {
       setError(err.message || 'Error inviting user');
     }
@@ -170,102 +183,4 @@ export default function AdminDashboard({ user }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white shadow-lg rounded-lg p-6">
           <h2 className="text-2xl font-bold mb-4">User Management</h2>
-          <form onSubmit={handleInviteUser} className="mb-4">
-            <input 
-              type="email" 
-              placeholder="Enter email to invite" 
-              value={inviteEmail} 
-              onChange={(e) => setInviteEmail(e.target.value)} 
-              className="border p-2 w-full mb-2" 
-              required 
-            />
-            <button type="submit" className="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 w-full">Invite New User</button>
-          </form>
-          <table className="w-full border">
-            <thead>
-              <tr className="bg-gray-200">
-                <th className="border p-2">Full Name</th>
-                <th className="border p-2">Email</th>
-                <th className="border p-2">Admin</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.length ? users.map(u => (
-                <tr key={u.id} className="hover:bg-gray-100">
-                  <td className="border p-2">{u.full_name}</td>
-                  <td className="border p-2">{u.auth_users?.email || 'N/A'}</td>
-                  <td className="border p-2 text-center">
-                    <input 
-                      type="checkbox" 
-                      checked={u.is_admin} 
-                      onChange={() => handleToggleAdmin(u.id, u.is_admin)} 
-                    />
-                  </td>
-                </tr>
-              )) : <tr><td colSpan="3" className="border p-2 text-center">No users yet</td></tr>}
-            </tbody>
-          </table>
-        </div>
-        <div className="bg-white shadow-lg rounded-lg p-6">
-          <h2 className="text-2xl font-bold mb-4">Sites</h2>
-          <ul className="list-disc pl-5">{sites.length ? sites.map(s => <li key={s.id} className="mb-2">{s.name}</li>) : <li>No sites yet</li>}</ul>
-        </div>
-      </div>
-
-      <div className="bg-white shadow-lg rounded-lg p-6 mt-6">
-        <h2 className="text-2xl font-bold mb-4">Create Site</h2>
-        <form onSubmit={handleCreateSite} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input type="text" placeholder="Site name" value={newSiteName} onChange={(e) => setNewSiteName(e.target.value)} className="border p-2" required />
-          <input type="text" placeholder="Address (e.g., 1600 Amphitheatre Pkwy, Mountain View, CA)" value={newSiteAddress} onChange={(e) => setNewSiteAddress(e.target.value)} className="border p-2" required />
-          <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 md:col-span-2">Create</button>
-        </form>
-      </div>
-
-      <div className="bg-white shadow-lg rounded-lg p-6 mt-6">
-        <h2 className="text-2xl font-bold mb-4">Assign Employee to Site</h2>
-        <form onSubmit={handleAssign} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <select value={assignEmployeeId} onChange={(e) => setAssignEmployeeId(e.target.value)} className="border p-2" required>
-            <option value="">Select Employee</option>
-            {users.filter(u => !u.is_admin).map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}  {/* Filter out admins for assignments */}
-          </select>
-          <select value={assignSiteId} onChange={(e) => setAssignSiteId(e.target.value)} className="border p-2" required>
-            <option value="">Select Site</option>
-            {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <input type="date" value={assignStartDate} onChange={(e) => setAssignStartDate(e.target.value)} className="border p-2" placeholder="Start Date" />
-          <input type="time" value={assignStartTime} onChange={(e) => setAssignStartTime(e.target.value)} className="border p-2" placeholder="Start Time" />
-          <input type="date" value={assignEndDate} onChange={(e) => setAssignEndDate(e.target.value)} className="border p-2" placeholder="End Date" />
-          <input type="time" value={assignEndTime} onChange={(e) => setAssignEndTime(e.target.value)} className="border p-2" placeholder="End Time" />
-          <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 md:col-span-2">Assign</button>
-        </form>
-      </div>
-
-      <div className="bg-white shadow-lg rounded-lg p-6 mt-6">
-        <h2 className="text-2xl font-bold mb-4">Reports</h2>
-        <form onSubmit={handleGenerateReport} className="flex flex-col md:flex-row items-center">
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border p-2 m-2 flex-grow" />
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border p-2 m-2 flex-grow" />
-          <button type="submit" className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 m-2">Generate Report</button>
-        </form>
-        {reports.length > 0 && (
-          <table className="w-full border mt-4">
-            <thead>
-              <tr className="bg-gray-200">
-                <th className="border p-2">User</th>
-                <th className="border p-2">Total Hours</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reports.map((r, i) => (
-                <tr key={i} className="hover:bg-gray-100">
-                  <td className="border p-2">{r.full_name}</td>
-                  <td className="border p-2">{r.hours.toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-}
+          <form onSubmit={handleInviteUser} className="mb
