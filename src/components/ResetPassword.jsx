@@ -1,3 +1,4 @@
+// src/components/ResetPassword.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -12,10 +13,13 @@ export default function ResetPassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const hash = location.hash.substring(1); // Get hash without #
+    console.log('Full location:', location); // Debug: Check full URL/hash
+    const hash = location.hash.substring(1);
+    console.log('Hash:', hash); // Debug: Should show type=recovery&access_token=...
     const params = new URLSearchParams(hash);
     const accessToken = params.get('access_token');
     const type = params.get('type');
+    console.log('Parsed type:', type, 'access_token:', accessToken); // Debug: Verify values
     if (type === 'recovery' && accessToken) {
       setToken(accessToken);
     } else {
@@ -41,7 +45,7 @@ export default function ResetPassword() {
     }
   };
 
-  if (!token) return <div className="text-red-500">Error: Invalid link</div>;
+  if (!token) return <div className="text-red-500">Error: {error}</div>;
   if (success) return <div>Password reset! Redirecting to login...</div>;
 
   return (
