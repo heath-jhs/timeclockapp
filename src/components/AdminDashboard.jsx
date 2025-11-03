@@ -50,7 +50,7 @@ export default function AdminDashboard({ user }) {
   const handleCreateSite = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(newSiteAddress)}&key=${import.meta.env.VITE_GOOGLE_MAPS_KEY}`);
+      const response = await fetch(`/.netlify/functions/geocode?address=${encodeURIComponent(newSiteAddress)}`);
       const data = await response.json();
       if (data.status !== 'OK') throw new Error('Geocoding failed');
       const { lat, lng } = data.results[0].geometry.location;
