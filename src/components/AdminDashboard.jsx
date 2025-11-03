@@ -9,8 +9,7 @@ export default function AdminDashboard({ user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newSiteName, setNewSiteName] = useState('');
-  const [newSiteLat, setNewSiteLat] = useState('');
-  const [newSiteLon, setNewSiteLon] = useState('');
+  const [newSiteAddress, setNewSiteAddress] = useState('');
   const [assignEmployeeId, setAssignEmployeeId] = useState('');
   const [assignSiteId, setAssignSiteId] = useState('');
   const [assignStartDate, setAssignStartDate] = useState('');
@@ -31,7 +30,11 @@ export default function AdminDashboard({ user }) {
         const { data: sitesData, error: sitesError } = await supabase.from('sites').select('*');
         if (sitesError) throw new Error(`Sites error: ${sitesError.message}`);
         setSites(sitesData || []);
-        const { data: assignData, error: assignError } = await supabase.from('employee_sites').select('*, profiles(full_name), sites(name, latitude, longitude)').where('end_datetime > now() OR end_datetime IS NULL');
+        const current = new Date().toISOString();
+        const { data: assignData, error: assignError } = await supabase
+          .from('employee_sites')
+          .select('*, profiles(full_name), sites(name, latitude, longitude)')
+          .or(`end_datetime.gt.${current},end_datetime.is.null`);
         if (assignError) throw assignError;
         setActiveAssignments(assignData || []);
       } catch (err) {
@@ -45,14 +48,19 @@ export default function AdminDashboard({ user }) {
 
   const handleCreateSite = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('sites').insert({ name: newSiteName, latitude: parseFloat(newSiteLat), longitude: parseFloat(newSiteLon) });
-    if (error) setError(error.message);
-    else {
+    try {
+      const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(newSiteAddress)}&key=${import.meta.env.VITE_GOOGLE_MAPS_KEY}`);
+      const data = await response.json();
+      if (data.status !== 'OK') throw new Error('Geocoding failed');
+      const { lat, lng } = data.results[0].geometry.location;
+      const { error } = await supabase.from('sites').insert({ name: newSiteName, latitude: lat, longitude: lng });
+      if (error) throw error;
       setNewSiteName('');
-      setNewSiteLat('');
-      setNewSiteLon('');
+      setNewSiteAddress('');
       const { data: sitesData } = await supabase.from('sites').select('*');
       setSites(sitesData || []);
+    } catch (err) {
+      setError(err.message || 'Error creating site');
     }
   };
 
@@ -74,7 +82,11 @@ export default function AdminDashboard({ user }) {
       setAssignStartTime('');
       setAssignEndDate('');
       setAssignEndTime('');
-      const { data: assignData } = await supabase.from('employee_sites').select('*, profiles(full_name), sites(name, latitude, longitude)').where('end_datetime > now() OR end_datetime IS NULL');
+      const current = new Date().toISOString();
+      const { data: assignData } = await supabase
+        .from('employee_sites')
+        .select('*, profiles(full_name), sites(name, latitude, longitude)')
+        .or(`end_datetime.gt.${current},end_datetime.is.null`);
       setActiveAssignments(assignData || []);
     }
   };
@@ -139,11 +151,10 @@ export default function AdminDashboard({ user }) {
 
       <div className="bg-white shadow-lg rounded-lg p-6 mt-6">
         <h2 className="text-2xl font-bold mb-4">Create Site</h2>
-        <form onSubmit={handleCreateSite} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <form onSubmit={handleCreateSite} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input type="text" placeholder="Site name" value={newSiteName} onChange={(e) => setNewSiteName(e.target.value)} className="border p-2" required />
-          <input type="number" placeholder="Latitude" value={newSiteLat} onChange={(e) => setNewSiteLat(e.target.value)} className="border p-2" required />
-          <input type="number" placeholder="Longitude" value={newSiteLon} onChange={(e) => setNewSiteLon(e.target.value)} className="border p-2" required />
-          <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 md:col-span-3">Create</button>
+          <input type="text" placeholder="Address (e.g., 1600 Amphitheatre Pkwy, Mountain View, CA)" value={newSiteAddress} onChange={(e) => setNewSiteAddress(e.target.value)} className="border p-2" required />
+          <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 md:col-span-2">Create</button>
         </form>
       </div>
 
