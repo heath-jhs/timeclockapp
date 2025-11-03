@@ -34,9 +34,14 @@ const AdminDashboard = () => {
   };
 
   const fetchUsers = async () => {
-    const { data, error } = await supabase.auth.admin.listUsers();
-    if (error) console.error(error);
-    else setUsers(data.users || []);
+    try {
+      const res = await fetch('/.netlify/functions/list-users');
+      if (!res.ok) throw new Error('Failed to fetch users');
+      const data = await res.json();
+      setUsers(data || []);
+    } catch (err) {
+      console.error('Fetch users error:', err);
+    }
   };
 
   const handleCreateSite = async (e) => {
@@ -77,13 +82,12 @@ const AdminDashboard = () => {
     setLoading(true);
     setError('');
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: userEmail,
         password: userPassword,
         options: { data: { is_admin: isAdmin } },
       });
       if (error) throw error;
-      if (data.user) alert('User created—check email for confirmation');
       setUserEmail('');
       setUserPassword('');
       setIsAdmin(false);
@@ -101,7 +105,7 @@ const AdminDashboard = () => {
       <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
       {error && <p className="text-red-500 mb-4 p-2 border border-red-500 rounded">{error}</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="card bg-white p-4 rounded shadow">
+        <div className="bg-white p-4 rounded shadow">
           <h2 className="text-xl font-semibold mb-2">Add Site</h2>
           <form onSubmit={handleCreateSite} className="mb-8">
             <input
@@ -109,7 +113,7 @@ const AdminDashboard = () => {
               placeholder="Site Name"
               value={siteName}
               onChange={(e) => setSiteName(e.target.value)}
-              className="border p-2 mr-2 w-full mb-2"
+              className="border p-2 w-full mb-2"
               required
             />
             <input
@@ -117,7 +121,7 @@ const AdminDashboard = () => {
               placeholder="Site Address (e.g., 1600 Amphitheatre Parkway, Mountain View, CA)"
               value={siteAddress}
               onChange={(e) => setSiteAddress(e.target.value)}
-              className="border p-2 mr-2 w-full mb-2"
+              className="border p-2 w-full mb-2"
               required
             />
             <button type="submit" disabled={loading} className="bg-blue-500 text-white p-2 w-full">
@@ -131,7 +135,7 @@ const AdminDashboard = () => {
             ))}
           </ul>
         </div>
-        <div className="card bg-white p-4 rounded shadow">
+        <div className="bg-white p-4 rounded shadow">
           <h2 className="text-xl font-semibold mb-2">Sites Map</h2>
           <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_KEY}>
             <GoogleMap mapContainerStyle={mapContainerStyle} center={{ lat: 37.422, lng: -122.084 }} zoom={3}>
@@ -141,7 +145,7 @@ const AdminDashboard = () => {
             </GoogleMap>
           </LoadScript>
         </div>
-        <div className="card bg-white p-4 rounded shadow md:col-span-2">
+        <div className="bg-white p-4 rounded shadow md:col-span-2">
           <h2 className="text-xl font-semibold mb-2">Add User</h2>
           <form onSubmit={handleCreateUser} className="mb-8">
             <input
@@ -149,7 +153,7 @@ const AdminDashboard = () => {
               placeholder="User Email"
               value={userEmail}
               onChange={(e) => setUserEmail(e.target.value)}
-              className="border p-2 mr-2 w-full mb-2"
+              className="border p-2 w-full mb-2"
               required
             />
             <input
@@ -157,10 +161,10 @@ const AdminDashboard = () => {
               placeholder="User Password"
               value={userPassword}
               onChange={(e) => setUserPassword(e.target.value)}
-              className="border p-2 mr-2 w-full mb-2"
+              className="border p-2 w-full mb-2"
               required
             />
-            <label className="mr-2">
+            <label className="block mb-2">
               Admin? <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} />
             </label>
             <button type="submit" disabled={loading} className="bg-green-500 text-white p-2 w-full">
