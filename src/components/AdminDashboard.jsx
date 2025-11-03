@@ -33,7 +33,7 @@ export default function AdminDashboard({ user }) {
         const current = new Date().toISOString();
         const { data: assignData, error: assignError } = await supabase
           .from('employee_sites')
-          .select('*, profiles!employee_id(full_name), sites!site_id(name, latitude, longitude)')
+          .select('*, profiles!employee_sites_employee_id_fkey(full_name), sites!employee_sites_site_id_fkey(name, latitude, longitude)')
           .or(`end_datetime.gt.${current},end_datetime.is.null`);
         if (assignError) throw assignError;
         setActiveAssignments(assignData || []);
@@ -85,7 +85,7 @@ export default function AdminDashboard({ user }) {
       const current = new Date().toISOString();
       const { data: assignData } = await supabase
         .from('employee_sites')
-        .select('*, profiles!employee_id(full_name), sites!site_id(name, latitude, longitude)')
+        .select('*, profiles!employee_sites_employee_id_fkey(full_name), sites!employee_sites_site_id_fkey(name, latitude, longitude)')
         .or(`end_datetime.gt.${current},end_datetime.is.null`);
       setActiveAssignments(assignData || []);
     }
@@ -93,7 +93,7 @@ export default function AdminDashboard({ user }) {
 
   const handleGenerateReport = async (e) => {
     e.preventDefault();
-    let query = supabase.from('clock_ins').select('*, profiles!user_id(full_name)').eq('profiles.is_admin', 'false');
+    let query = supabase.from('clock_ins').select('*, profiles!clock_ins_user_id_fkey(full_name)').eq('profiles.is_admin', 'false');
     if (startDate) query = query.gte('time_in', startDate);
     if (endDate) query = query.lte('time_in', endDate);
     const { data, error } = await query;
@@ -145,7 +145,7 @@ export default function AdminDashboard({ user }) {
         </div>
         <div className="bg-white shadow-lg rounded-lg p-6">
           <h2 className="text-2xl font-bold mb-4">Sites</h2>
-          <ul className="list-disc pl-5">{sites.length ? sites.map(s => <li key={s.id} className="mb-2">{s.name}</li>) : <li>No sites yet</li>}</ul>
+          <ul className="list-disc pl-5">{sites.length ? sites.map(s => <li key={u.id} className="mb-2">{s.name}</li>) : <li>No sites yet</li>}</ul>
         </div>
       </div>
 
