@@ -33,7 +33,7 @@ export default function AdminDashboard({ user }) {
         const current = new Date().toISOString();
         const { data: assignData, error: assignError } = await supabase
           .from('employee_sites')
-          .select('*, profiles(full_name), sites(name, latitude, longitude)')
+          .select('*, profiles!employee_id(full_name), sites!site_id(name, latitude, longitude)')
           .or(`end_datetime.gt.${current},end_datetime.is.null`);
         if (assignError) throw assignError;
         setActiveAssignments(assignData || []);
@@ -85,7 +85,7 @@ export default function AdminDashboard({ user }) {
       const current = new Date().toISOString();
       const { data: assignData } = await supabase
         .from('employee_sites')
-        .select('*, profiles(full_name), sites(name, latitude, longitude)')
+        .select('*, profiles!employee_id(full_name), sites!site_id(name, latitude, longitude)')
         .or(`end_datetime.gt.${current},end_datetime.is.null`);
       setActiveAssignments(assignData || []);
     }
@@ -93,7 +93,7 @@ export default function AdminDashboard({ user }) {
 
   const handleGenerateReport = async (e) => {
     e.preventDefault();
-    let query = supabase.from('clock_ins').select('*, profiles(full_name)').eq('profiles.is_admin', 'false');
+    let query = supabase.from('clock_ins').select('*, profiles!user_id(full_name)').eq('profiles.is_admin', 'false');
     if (startDate) query = query.gte('time_in', startDate);
     if (endDate) query = query.lte('time_in', endDate);
     const { data, error } = await query;
