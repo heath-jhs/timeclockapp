@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { supabase } from '../supabaseClient'; // Adjust path if needed
-import { useAuth } from '../AuthProvider'; // Adjust path if needed
+import { supabase } from '../supabaseClient';
+import { useAuth } from '../AuthProvider';
 import { useNavigate } from 'react-router-dom';
 
 const Auth = () => {
@@ -9,7 +9,7 @@ const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user } from useAuth();
   const navigate = useNavigate();
 
   // Redirect if already logged in
