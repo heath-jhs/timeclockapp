@@ -1,3 +1,4 @@
+// src/components/Login.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -13,8 +14,11 @@ export default function Login() {
   useEffect(() => {
     const hash = location.hash.substring(1);
     const params = new URLSearchParams(hash);
-    if (params.get('type') === 'recovery' && params.get('access_token')) {
-      navigate('/reset-password');
+    const type = params.get('type');
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    if (type === 'recovery' && accessToken) {
+      navigate('/reset-password', { state: { type, access_token: accessToken, refresh_token: refreshToken } });
     }
   }, [location, navigate]);
 
