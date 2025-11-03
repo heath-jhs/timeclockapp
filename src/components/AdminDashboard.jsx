@@ -19,6 +19,8 @@ const AdminDashboard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -34,13 +36,21 @@ const AdminDashboard = () => {
   };
 
   const fetchUsers = async () => {
+    setUsersLoading(true);
+    setUsersError('');
     try {
       const res = await fetch('/.netlify/functions/list-users');
-      if (!res.ok) throw new Error('Failed to fetch users');
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || 'Failed to fetch users: ' + res.status);
+      }
       const data = await res.json();
       setUsers(data || []);
     } catch (err) {
       console.error('Fetch users error:', err);
+      setUsersError('Error loading users: ' + err.message);
+    } finally {
+      setUsersLoading(false);
     }
   };
 
@@ -77,6 +87,18 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteSite = async (id) => {
+    if (!window.confirm('Delete this site?')) return;
+    try {
+      const { error } = await supabase.from('sites').delete().eq('id', id);
+      if (error) throw error;
+      fetchSites();
+    } catch (err) {
+      console.error('Delete site error:', err);
+      setError('Failed to delete site: ' + err.message);
+    }
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -97,6 +119,25 @@ const AdminDashboard = () => {
       setError('User creation failed: ' + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm('Delete this user? This is permanent.')) return;
+    try {
+      const res = await fetch('/.netlify/functions/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id }),
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || 'Failed to delete user: ' + res.status);
+      }
+      fetchUsers();
+    } catch (err) {
+      console.error('Delete user error:', err);
+      setError('Failed to delete user: ' + err.message);
     }
   };
 
@@ -144,8 +185,14 @@ const AdminDashboard = () => {
           <h2 className="text-2xl font-semibold mt-8 mb-4 text-gray-700">Sites</h2>
           <ul className="space-y-2">
             {sites.map((site) => (
-              <li key={site.id} className="bg-gray-50 p-3 rounded border border-gray-200">
-                {site.name} - {site.address} ({site.lat}, {site.lng})
+              <li key={site.id} className="flex justify-between items-center bg-gray-50 p-3 rounded border border-gray-200">
+                <span>{site.name} - {site.address} ({site.lat}, {site.lng})</span>
+                <button 
+                  onClick={() => handleDeleteSite(site.id)} 
+                  className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition"
+                >
+                  Delete
+                </button>
               </li>
             ))}
           </ul>
@@ -192,10 +239,18 @@ const AdminDashboard = () => {
             </button>
           </form>
           <h2 className="text-2xl font-semibold mt-8 mb-4 text-gray-700">Users</h2>
+          {usersLoading && <p className="text-gray-600">Loading users...</p>}
+          {usersError && <p className="text-red-600">{usersError}</p>}
           <ul className="space-y-2">
             {users.map((user) => (
-              <li key={user.id} className="bg-gray-50 p-3 rounded border border-gray-200">
-                {user.email} - {user.user_metadata.is_admin ? 'Admin' : 'Employee'}
+              <li key={user.id} className="flex justify-between items-center bg-gray-50 p-3 rounded border border-gray-200">
+                <span>{user.email} - {user.user_metadata.is_admin ? 'Admin' : 'Employee'}</span>
+                <button 
+                  onClick={() => handleDeleteUser(user.id)} 
+                  className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition"
+                >
+                  Delete
+                </button>
               </li>
             ))}
           </ul>
