@@ -1,9 +1,8 @@
-// src/App.jsx
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Login from './components/Login.jsx';
-import ForgotPassword from './components/ForgotPassword.jsx';
-import ResetPassword from './components/ResetPassword.jsx';
-import Dashboard from './components/Dashboard.jsx';
+import Login from './components/Login';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
+import Dashboard from './components/Dashboard';
 
 export default function App() {
   return (
