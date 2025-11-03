@@ -1,6 +1,7 @@
 // src/components/AdminDashboard.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 
 export default function AdminDashboard({ user }) {
   const [users, setUsers] = useState([]);
@@ -8,6 +9,8 @@ export default function AdminDashboard({ user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newSiteName, setNewSiteName] = useState('');
+  const [newSiteLat, setNewSiteLat] = useState('');
+  const [newSiteLon, setNewSiteLon] = useState('');
   const [assignEmployeeId, setAssignEmployeeId] = useState('');
   const [assignSiteId, setAssignSiteId] = useState('');
   const [assignStartDate, setAssignStartDate] = useState('');
@@ -17,6 +20,7 @@ export default function AdminDashboard({ user }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [reports, setReports] = useState([]);
+  const [activeAssignments, setActiveAssignments] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -27,6 +31,9 @@ export default function AdminDashboard({ user }) {
         const { data: sitesData, error: sitesError } = await supabase.from('sites').select('*');
         if (sitesError) throw new Error(`Sites error: ${sitesError.message}`);
         setSites(sitesData || []);
+        const { data: assignData, error: assignError } = await supabase.from('employee_sites').select('*, profiles(full_name), sites(name, latitude, longitude)').where('end_datetime > now() OR end_datetime IS NULL');
+        if (assignError) throw assignError;
+        setActiveAssignments(assignData || []);
       } catch (err) {
         setError(err.message || 'Error loading admin data');
       } finally {
@@ -38,10 +45,12 @@ export default function AdminDashboard({ user }) {
 
   const handleCreateSite = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('sites').insert({ name: newSiteName });
+    const { error } = await supabase.from('sites').insert({ name: newSiteName, latitude: parseFloat(newSiteLat), longitude: parseFloat(newSiteLon) });
     if (error) setError(error.message);
     else {
       setNewSiteName('');
+      setNewSiteLat('');
+      setNewSiteLon('');
       const { data: sitesData } = await supabase.from('sites').select('*');
       setSites(sitesData || []);
     }
@@ -65,6 +74,8 @@ export default function AdminDashboard({ user }) {
       setAssignStartTime('');
       setAssignEndDate('');
       setAssignEndTime('');
+      const { data: assignData } = await supabase.from('employee_sites').select('*, profiles(full_name), sites(name, latitude, longitude)').where('end_datetime > now() OR end_datetime IS NULL');
+      setActiveAssignments(assignData || []);
     }
   };
 
@@ -104,6 +115,17 @@ export default function AdminDashboard({ user }) {
         <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</button>
       </div>
 
+      <div className="bg-white shadow-lg rounded-lg p-6 mb-6">
+        <h2 className="text-2xl font-bold mb-4">Staff Map View</h2>
+        <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_KEY}>
+          <GoogleMap mapContainerStyle={{ height: '400px', width: '100%' }} center={{ lat: 0, lng: 0 }} zoom={2}>
+            {activeAssignments.map((a, i) => (
+              a.sites.latitude && a.sites.longitude && <Marker key={i} position={{ lat: a.sites.latitude, lng: a.sites.longitude }} title={a.profiles.full_name + ' at ' + a.sites.name} />
+            ))}
+          </GoogleMap>
+        </LoadScript>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white shadow-lg rounded-lg p-6">
           <h2 className="text-2xl font-bold mb-4">Users</h2>
@@ -117,9 +139,11 @@ export default function AdminDashboard({ user }) {
 
       <div className="bg-white shadow-lg rounded-lg p-6 mt-6">
         <h2 className="text-2xl font-bold mb-4">Create Site</h2>
-        <form onSubmit={handleCreateSite} className="flex flex-col md:flex-row items-center">
-          <input type="text" placeholder="Site name" value={newSiteName} onChange={(e) => setNewSiteName(e.target.value)} className="border p-2 m-2 flex-grow" required />
-          <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 m-2">Create</button>
+        <form onSubmit={handleCreateSite} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input type="text" placeholder="Site name" value={newSiteName} onChange={(e) => setNewSiteName(e.target.value)} className="border p-2" required />
+          <input type="number" placeholder="Latitude" value={newSiteLat} onChange={(e) => setNewSiteLat(e.target.value)} className="border p-2" required />
+          <input type="number" placeholder="Longitude" value={newSiteLon} onChange={(e) => setNewSiteLon(e.target.value)} className="border p-2" required />
+          <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 md:col-span-3">Create</button>
         </form>
       </div>
 
