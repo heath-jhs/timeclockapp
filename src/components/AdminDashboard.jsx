@@ -34,9 +34,9 @@ const AdminDashboard = () => {
   };
 
   const fetchUsers = async () => {
-    const { data, error } = await supabase.from('users').select('*');
+    const { data, error } = await supabase.auth.admin.listUsers();
     if (error) console.error(error);
-    else setUsers(data || []);
+    else setUsers(data.users || []);
   };
 
   const handleCreateSite = async (e) => {
@@ -77,12 +77,13 @@ const AdminDashboard = () => {
     setLoading(true);
     setError('');
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: userEmail,
         password: userPassword,
         options: { data: { is_admin: isAdmin } },
       });
       if (error) throw error;
+      if (data.user) alert('User created—check email for confirmation');
       setUserEmail('');
       setUserPassword('');
       setIsAdmin(false);
@@ -141,7 +142,7 @@ const AdminDashboard = () => {
           </LoadScript>
         </div>
         <div className="card bg-white p-4 rounded shadow md:col-span-2">
-          <h2 className="text-xl font-semibold mb-2">Users</h2>
+          <h2 className="text-xl font-semibold mb-2">Add User</h2>
           <form onSubmit={handleCreateUser} className="mb-8">
             <input
               type="email"
@@ -166,6 +167,7 @@ const AdminDashboard = () => {
               {loading ? 'Creating...' : 'Add User'}
             </button>
           </form>
+          <h2 className="text-xl font-semibold mb-2">Users</h2>
           <ul>
             {users.map((user) => (
               <li key={user.id}>{user.email} - {user.user_metadata.is_admin ? 'Admin' : 'Employee'}</li>
