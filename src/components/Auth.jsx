@@ -9,7 +9,7 @@ const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user } from useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already logged in
