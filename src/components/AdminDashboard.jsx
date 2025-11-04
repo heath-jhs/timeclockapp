@@ -48,7 +48,7 @@ const AdminDashboard = ({ logout }) => {
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   const refreshAll = async () => {
-    setError(null); // Clear error on retry
+    setError(null);
     await Promise.all([
       fetchEmployees(),
       fetchSites(),
@@ -92,7 +92,7 @@ const AdminDashboard = ({ logout }) => {
     try {
       const { data, error } = await supabase
         .from('employee_sites')
-        .select('*, employee:employee_id ( username ), site:site_id ( name )')
+        .select('*, employee:employee_id ( username, daily_start, daily_end ), site:site_id ( name )')
         .order('start_date', { ascending: false });
       if (error) throw error;
       setAssignments(data);
@@ -105,12 +105,22 @@ const AdminDashboard = ({ logout }) => {
     try {
       const { data, error } = await supabase
         .from('time_entries')
-        .select('*, employee:employee_id ( username ), site:site_id ( name )')
+        .select('*, employee:employee_id ( username, daily_start, daily_end ), site:site_id ( name )')
         .order('clock_in_time', { ascending: false });
       if (error) throw error;
       setTimeEntries(data);
     } catch (err) {
       setError('Time entries fetch failed: ' + err.message);
+    }
+  };
+
+  const updateDailyTimes = async (id, field, value) => {
+    try {
+      const { error } = await supabase.from('profiles').update({ [field]: value }).eq('id', id);
+      if (error) throw error;
+      await refreshAll();
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -208,6 +218,17 @@ const AdminDashboard = ({ logout }) => {
     return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateDuration(a)})`).join('\n');
   };
 
+  const sortSites = (sites, sortType) => {
+    if (sortType === 'A-Z') {
+      return [...sites].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortType === 'Z-A') {
+      return [...sites].sort((a, b) => b.name.localeCompare(a.name));
+    }
+    return sites; // Recent is default from DB order
+  };
+
+  const sortedSites = sortSites(sites, siteSort);
+
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
       <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Admin Dashboard</h1>
@@ -232,7 +253,7 @@ const AdminDashboard = ({ logout }) => {
           <ul style={{ listStyleType: 'none' }}>
             {employees.map(emp => (
               <li key={emp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
-                {emp.username} ({emp.role})
+                {emp.username} ({emp.role || 'Employee'})
                 <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
               </li>
             ))}
@@ -254,8 +275,13 @@ const AdminDashboard = ({ logout }) => {
             <option value="">Select Employee</option>
             {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.username}</option>)}
           </select>
+          <select value={siteSort} onChange={e => setSiteSort(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }}>
+            <option>Recent</option>
+            <option>A-Z</option>
+            <option>Z-A</option>
+          </select>
           <div style={{ marginBottom: '1rem' }}>
-            {sites.map(site => (
+            {sortedSites.map(site => (
               <label key={site.id} style={{ display: 'block', marginBottom: '0.5rem' }}>
                 <input type="checkbox" checked={selectedSites.includes(site.id)} onChange={() => {
                   setSelectedSites(prev => prev.includes(site.id) ? prev.filter(s => s !== site.id) : [...prev, site.id]);
