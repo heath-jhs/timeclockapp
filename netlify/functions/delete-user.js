@@ -16,7 +16,7 @@ exports.handler = async (event) => {
         detectSessionInUrl: false
       }
     });
-    const { error } = await supabase.auth.admin.deleteUser(userId);
+    const { error } = await supabase.auth.admin.deleteUser(userId, true); // true for soft delete
     if (error) {
       console.log('Delete user error details:', error);
       throw error;
