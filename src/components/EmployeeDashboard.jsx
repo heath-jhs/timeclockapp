@@ -49,16 +49,40 @@ const EmployeeDashboard = ({ logout }) => {
     fetchUserAndData();
   }, []);
 
+  const getLocation = () => new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+  });
+
+  const haversineDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // meters
+    const p1 = lat1 * Math.PI / 180;
+    const p2 = lat2 * Math.PI / 180;
+    const deltaP = (lat2 - lat1) * Math.PI / 180;
+    const deltaL = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(deltaP / 2) * Math.sin(deltaP / 2) +
+      Math.cos(p1) * Math.cos(p2) *
+      Math.sin(deltaL / 2) * Math.sin(deltaL / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
   const clockIn = async () => {
     if (!selectedSite) {
       setError('Select a site first');
       return;
     }
     try {
+      const position = await getLocation();
+      const { latitude, longitude } = position.coords;
+      const site = assignedSites.find(s => s.id === selectedSite);
+      const dist = haversineDistance(latitude, longitude, site.lat, site.lon);
+      if (dist > 100) throw new Error('Too far from site - must be within 100m');
       const { error } = await supabase.from('time_entries').insert({
         employee_id: userId,
         site_id: selectedSite,
         clock_in_time: new Date().toISOString(),
+        clock_in_lat: latitude,
+        clock_in_lon: longitude,
       });
       if (error) throw error;
       setCurrentEntry({ site_id: selectedSite, clock_in_time: new Date().toISOString() });
@@ -71,9 +95,14 @@ const EmployeeDashboard = ({ logout }) => {
 
   const clockOut = async () => {
     try {
+      const position = await getLocation();
+      const { latitude, longitude } = position.coords;
+      const site = assignedSites.find(s => s.id === currentEntry.site_id);
+      const dist = haversineDistance(latitude, longitude, site.lat, site.lon);
+      if (dist > 100) throw new Error('Too far from site - must be within 100m');
       const { error } = await supabase
         .from('time_entries')
-        .update({ clock_out_time: new Date().toISOString() })
+        .update({ clock_out_time: new Date().toISOString(), clock_out_lat: latitude, clock_out_lon: longitude })
         .eq('id', currentEntry.id);
       if (error) throw error;
       setCurrentEntry(null);
