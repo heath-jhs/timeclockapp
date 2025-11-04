@@ -16,14 +16,14 @@ exports.handler = async (event) => {
         detectSessionInUrl: false
       }
     });
-    const { error } = await supabase.auth.admin.deleteUser(userId, true); // true for soft delete
+    const { error } = await supabase.auth.admin.deleteUser(userId, false); // false for hard delete
     if (error) {
       console.log('Delete user error details:', error);
       throw error;
     }
     return { statusCode: 200, body: JSON.stringify({ message: 'User deleted' }) };
   } catch (error) {
-    console.error(error);
-    return { statusCode: 500, body: JSON.stringify({ message: error.message, details: error.details || 'No details' }) };
+    console.error('Full delete error:', error);
+    return { statusCode: 500, body: JSON.stringify({ message: error.message, code: error.code, hint: error.hint, details: error.details || 'No details' }) };
   }
 };
