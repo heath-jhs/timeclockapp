@@ -16,18 +16,7 @@ exports.handler = async (event) => {
         detectSessionInUrl: false
       }
     });
-    // Prevent self-delete if userId is current (though admin is calling, better safe)
-    const { data: currentSession } = await supabase.auth.getSession();
-    if (currentSession?.user?.id === userId) {
-      throw new Error('Cannot delete logged-in user');
-    }
-    // Force signout all sessions
-    const { data: sessions, error: sessionsError } = await supabase.auth.admin.listSessions(userId);
-    if (sessionsError) throw sessionsError;
-    for (const session of sessions.sessions || []) {
-      await supabase.auth.signOut({ scope: 'global', access_token: session.access_token });
-    }
-    const { error } = await supabase.auth.admin.deleteUser(userId);
+    const { error } = await supabase.auth.admin.deleteUser(userId, { shouldSoftDelete: true });
     if (error) {
       console.log('Delete user error details:', error);
       throw error;
