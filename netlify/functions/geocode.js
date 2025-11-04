@@ -11,22 +11,34 @@ exports.handler = async (event) => {
 
   try {
     console.log('Geocoding address:', address); // Debug input
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=US&q=${encodeURIComponent(address)}`, {
+    // Try Nominatim first
+    let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=US&q=${encodeURIComponent(address)}`, {
       headers: { 'User-Agent': 'TimeClockApp/1.0 (heath@jhstrickland.com)' }
     });
-    const data = await response.json();
-    console.log('Geocode response:', data); // Debug full response
-    if (data.length === 0) {
+    let data = await response.json();
+    console.log('Nominatim response:', data); // Debug
+    if (data.length > 0) {
+      const { lat, lon } = data[0];
+      const parsedLat = parseFloat(lat);
+      const parsedLon = parseFloat(lon);
+      if (!isNaN(parsedLat) && !isNaN(parsedLon)) {
+        console.log('Nominatim success lat/lon:', parsedLat, parsedLon);
+        return { statusCode: 200, body: JSON.stringify({ lat: parsedLat, lon: parsedLon }) };
+      }
+    }
+
+    // Fallback to Google if Nominatim fails
+    console.log('Nominatim failed - falling back to Google');
+    response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.GOOGLE_MAPS_KEY}`);
+    data = await response.json();
+    console.log('Google response:', data); // Debug
+    if (data.status !== 'OK' || data.results.length === 0) {
       throw new Error('Address not found - try adding ZIP or full state');
     }
-    // Pick the first/best match
-    const { lat, lon } = data[0];
+    const { lat, lng } = data.results[0].geometry.location;
     const parsedLat = parseFloat(lat);
-    const parsedLon = parseFloat(lon);
-    if (isNaN(parsedLat) || isNaN(parsedLon)) {
-      throw new Error('Invalid lat/lon parsed');
-    }
-    console.log('Parsed lat/lon:', parsedLat, parsedLon); // Debug output
+    const parsedLon = parseFloat(lng);
+    console.log('Google success lat/lon:', parsedLat, parsedLon);
     return { statusCode: 200, body: JSON.stringify({ lat: parsedLat, lon: parsedLon }) };
   } catch (error) {
     console.error('Geocode error:', error);
