@@ -18,7 +18,6 @@ const AdminDashboard = ({ logout }) => {
   const [employees, setEmployees] = useState([]);
   const [sites, setSites] = useState([]);
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
-  const [newEmployeePassword, setNewEmployeePassword] = useState('');
   const [newEmployeeIsAdmin, setNewEmployeeIsAdmin] = useState(false);
   const [newSiteName, setNewSiteName] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
@@ -56,12 +55,11 @@ const AdminDashboard = ({ logout }) => {
     try {
       const response = await fetch('/.netlify/functions/add-user', {
         method: 'POST',
-        body: JSON.stringify({ email: newEmployeeEmail, password: newEmployeePassword, isAdmin: newEmployeeIsAdmin }),
+        body: JSON.stringify({ email: newEmployeeEmail, isAdmin: newEmployeeIsAdmin }),
       });
       if (!response.ok) throw new Error('Failed to add user');
       fetchEmployees();
       setNewEmployeeEmail('');
-      setNewEmployeePassword('');
       setNewEmployeeIsAdmin(false);
       setError(null);
     } catch (err) {
@@ -118,13 +116,11 @@ const AdminDashboard = ({ logout }) => {
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Employee</h2>
           <input type="email" placeholder="Email" value={newEmployeeEmail} onChange={e => setNewEmployeeEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
-          <input type="password" placeholder="Password" value={newEmployeePassword} onChange={e => setNewEmployeePassword(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
           <label style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
             <input type="checkbox" checked={newEmployeeIsAdmin} onChange={e => setNewEmployeeIsAdmin(e.target.checked)} style={{ marginRight: '0.5rem' }} /> Admin
           </label>
           <button onClick={addEmployee} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Employee</button>
         </div>
-
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Employees</h2>
           <ul style={{ listStyleType: 'none' }}>
@@ -136,13 +132,11 @@ const AdminDashboard = ({ logout }) => {
             ))}
           </ul>
         </div>
-
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Site</h2>
           <input type="text" placeholder="Site Name/Address" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
           <button onClick={addSite} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Site</button>
         </div>
-
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Assign Sites to Employee</h2>
           <select value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }}>
@@ -161,7 +155,6 @@ const AdminDashboard = ({ logout }) => {
           <button onClick={assignSites} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Assign Sites</button>
         </div>
       </div>
-
       <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites Map</h2>
         <MapContainer center={[0, 0]} zoom={2} style={{ height: '400px', width: '100%' }}>
@@ -173,7 +166,6 @@ const AdminDashboard = ({ logout }) => {
           ))}
         </MapContainer>
       </div>
-
       <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
     </div>
   );
