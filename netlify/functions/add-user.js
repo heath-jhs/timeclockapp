@@ -12,6 +12,7 @@ exports.handler = async (event) => {
   }
 
   try {
+    console.log('Initializing Supabase with URL:', process.env.SUPABASE_URL); // Debug env
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
     const adminAuthClient = supabase.auth.admin;
 
@@ -26,15 +27,24 @@ exports.handler = async (event) => {
       }));
     } else {
       // Use invite for passwordless
+      console.log('Inviting user:', email); // Debug invite start
       ({ data, error } = await adminAuthClient.inviteUserByEmail(email, {
         data: { role: isAdmin ? 'Admin' : 'Employee' },
       }));
     }
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error); // Log full error
+      let message = error.message;
+      if (error.code === 'over_email_send_rate_limit') message = 'Email send rate limit exceeded—try again later';
+      if (error.code === 'user_already_exists') message = 'User already exists';
+      if (error.status === 403) message = 'Invalid service role key—check env vars';
+      throw new Error(message);
+    }
+    console.log('User added successfully:', data); // Debug success
     return { statusCode: 200, body: JSON.stringify(data.user || data) };
   } catch (error) {
-    console.error(error);
+    console.error('Function error:', error);
     return { statusCode: 500, body: JSON.stringify({ message: error.message }) };
   }
 };
