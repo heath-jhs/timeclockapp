@@ -33,7 +33,10 @@ const App = () => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      setUser(data.user);
+      // Force refresh to load app_metadata
+      const { data: refreshed } = await supabase.auth.getUser();
+      setUser(refreshed.user);
+      console.log('User app_metadata:', refreshed.user.app_metadata); // Debug log
       setError(null);
     } catch (err) {
       setError(err.message);
