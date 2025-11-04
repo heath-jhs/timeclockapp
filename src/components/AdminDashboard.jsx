@@ -1,95 +1,76 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 
-const AdminDashboard = () => {
-  const [users, setUsers] = useState([]);
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+  iconUrl: require('leaflet/dist/images/marker-icon.png'),
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+});
+
+const AdminDashboard = ({ logout }) => {
+  const [employees, setEmployees] = useState([]);
   const [sites, setSites] = useState([]);
-  const [assignments, setAssignments] = useState({});
-  const [tempAssigns, setTempAssigns] = useState({});
-  const [newEmail, setNewEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
+  const [newEmployeePassword, setNewEmployeePassword] = useState('');
+  const [newEmployeeIsAdmin, setNewEmployeeIsAdmin] = useState(false);
   const [newSiteName, setNewSiteName] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [selectedSites, setSelectedSites] = useState([]);
   const [error, setError] = useState(null);
-  const [mapType, setMapType] = useState('map');
+
+  const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await fetch('/.netlify/functions/list-users');
-        if (!res.ok) throw new Error(`Fetch users failed: ${res.status}`);
-        const data = await res.json();
-        setUsers(data);
-      } catch (err) {
-        setError(err.message);
-      }
-    };
-    const fetchSites = async () => {
-      try {
-        const res = await fetch('/.netlify/functions/list-sites');
-        if (!res.ok) throw new Error(`Fetch sites failed: ${res.status}`);
-        const data = await res.json();
-        setSites(data);
-      } catch (err) {
-        setError(err.message);
-      }
-    };
-    const fetchAssignments = async () => {
-      try {
-        const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
-        const { data, error } = await supabase.from('employee_sites').select('*');
-        if (error) throw error;
-        const assigns = data.reduce((acc, { employee_id, site_id }) => {
-          acc[employee_id] = acc[employee_id] || [];
-          acc[employee_id].push(site_id);
-          return acc;
-        }, {});
-        setAssignments(assigns);
-      } catch (err) {
-        setError(err.message);
-      }
-    };
-    fetchUsers();
+    fetchEmployees();
     fetchSites();
-    fetchAssignments();
-
-    import('leaflet').then(L => {
-      delete L.Icon.Default.prototype._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-        iconUrl: require('leaflet/dist/images/marker-icon.png'),
-        shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
-      });
-    });
   }, []);
 
-  const addUser = async () => {
+  const fetchEmployees = async () => {
     try {
-      const res = await fetch('/.netlify/functions/add-user', {
-        method: 'POST',
-        body: JSON.stringify({ email: newEmail, password: newPassword, isAdmin }),
-      });
-      if (!res.ok) throw new Error('Add user failed');
-      const data = await res.json();
-      setUsers([...users, data]);
-      setNewEmail('');
-      setNewPassword('');
-      setIsAdmin(false);
+      const { data, error } = await supabase.from('profiles').select('*');
+      if (error) throw error;
+      setEmployees(data);
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const deleteUser = async (userId) => {
+  const fetchSites = async () => {
     try {
-      const res = await fetch('/.netlify/functions/delete-user', {
+      const { data, error } = await supabase.from('sites').select('*');
+      if (error) throw error;
+      setSites(data);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const addEmployee = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/add-user', {
         method: 'POST',
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ email: newEmployeeEmail, password: newEmployeePassword, isAdmin: newEmployeeIsAdmin }),
       });
-      if (!res.ok) throw new Error(`Delete failed: ${await res.text()}`);
-      setUsers(users.filter(u => u.id !== userId));
+      if (!response.ok) throw new Error('Failed to add user');
+      fetchEmployees();
+      setNewEmployeeEmail('');
+      setNewEmployeePassword('');
+      setNewEmployeeIsAdmin(false);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const deleteEmployee = async (id) => {
+    try {
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) throw error;
+      fetchEmployees();
     } catch (err) {
       setError(err.message);
     }
@@ -97,92 +78,100 @@ const AdminDashboard = () => {
 
   const addSite = async () => {
     try {
-      const res = await fetch('/.netlify/functions/add-site', {
+      const response = await fetch('/.netlify/functions/geocode', {
         method: 'POST',
-        body: JSON.stringify({ name: newSiteName }),
+        body: JSON.stringify({ address: newSiteName }),
       });
-      if (!res.ok) throw new Error('Add site failed');
-      const data = await res.json();
-      setSites([...sites, data]);
+      const { lat, lon } = await response.json();
+      const { error } = await supabase.from('sites').insert({ name: newSiteName, lat, lon });
+      if (error) throw error;
+      fetchSites();
       setNewSiteName('');
+      setError(null);
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const assignSites = async (userId, siteIds) => {
+  const assignSites = async () => {
     try {
-      const res = await fetch('/.netlify/functions/assign-sites', {
-        method: 'POST',
-        body: JSON.stringify({ userId, siteIds }),
-      });
-      if (!res.ok) throw new Error('Assign sites failed');
-      setAssignments(prev => ({ ...prev, [userId]: siteIds }));
-      setTempAssigns(prev => ({ ...prev, [userId]: undefined }));
+      const inserts = selectedSites.map(siteId => ({ employee_id: selectedEmployee, site_id: siteId }));
+      const { error } = await supabase.from('employee_sites').insert(inserts);
+      if (error) throw error;
+      setSelectedEmployee('');
+      setSelectedSites([]);
+      setError(null);
     } catch (err) {
       setError(err.message);
     }
   };
-
-  const handleSiteChange = (userId, e) => {
-    const siteIds = Array.from(e.target.selectedOptions, o => o.value);
-    setTempAssigns(prev => ({ ...prev, [userId]: siteIds }));
-  };
-
-  const tileUrl = mapType === 'map' 
-    ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-    : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
       <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Admin Dashboard</h1>
-      {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>{error}</div>}
-      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
-        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add User</h2>
-        <input type="email" placeholder="User Email" value={newEmail} onChange={e => setNewEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
-        <input type="password" placeholder="User Password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
-        <label style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-          <input type="checkbox" checked={isAdmin} onChange={e => setIsAdmin(e.target.checked)} style={{ marginRight: '0.5rem' }} />
-          Admin?
-        </label>
-        <button onClick={addUser} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add User</button>
-      </div>
-      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
-        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Users</h2>
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {users.map(user => (
-            <li key={user.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', padding: '1rem 0', borderBottom: '1px solid #e2e8f0' }}>
-              <span style={{ flex: '1 1 200px', marginBottom: '0.5rem' }}>{user.email} - {user.user_metadata?.role || 'Employee'}</span>
-              <select
-                multiple
-                value={tempAssigns[user.id] || assignments[user.id] || []}
-                onChange={e => handleSiteChange(user.id, e)}
-                style={{ flex: '1 1 200px', height: '100px', marginBottom: '0.5rem', marginRight: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.5rem' }}
-              >
-                {sites.length === 0 ? <option disabled>No sites available - add one below</option> : sites.map(site => <option key={site.id} value={site.id}>{site.name}</option>)}
-              </select>
-              <button onClick={() => assignSites(user.id, tempAssigns[user.id] || assignments[user.id] || [])} style={{ background: '#4299e1', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginRight: '1rem', marginBottom: '0.5rem' }}>Save Sites</button>
-              <button onClick={() => deleteUser(user.id)} style={{ background: '#f56565', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginBottom: '0.5rem' }}>Delete</button>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
-        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Site</h2>
-        <input placeholder="Site Name" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
-        <button onClick={addSite} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Site</button>
-      </div>
-      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites Map</h2>
-        <div style={{ marginBottom: '1rem' }}>
-          <button onClick={() => setMapType('map')} style={{ background: mapType === 'map' ? '#a0aec0' : 'white', color: mapType === 'map' ? 'white' : '#333', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', marginRight: '0.5rem', cursor: 'pointer' }}>Map</button>
-          <button onClick={() => setMapType('satellite')} style={{ background: mapType === 'satellite' ? '#a0aec0' : 'white', color: mapType === 'satellite' ? 'white' : '#333', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', cursor: 'pointer' }}>Satellite</button>
+      {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{error}</div>}
+      
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+          <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Employee</h2>
+          <input type="email" placeholder="Email" value={newEmployeeEmail} onChange={e => setNewEmployeeEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
+          <input type="password" placeholder="Password" value={newEmployeePassword} onChange={e => setNewEmployeePassword(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
+          <label style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+            <input type="checkbox" checked={newEmployeeIsAdmin} onChange={e => setNewEmployeeIsAdmin(e.target.checked)} style={{ marginRight: '0.5rem' }} /> Admin
+          </label>
+          <button onClick={addEmployee} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Employee</button>
         </div>
-        <MapContainer center={[45.0, -75.0]} zoom={4} style={{ height: '300px', width: '100%' }}>
-          <TileLayer url={tileUrl} />
+
+        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+          <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Employees</h2>
+          <ul style={{ listStyleType: 'none' }}>
+            {employees.map(emp => (
+              <li key={emp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
+                {emp.username} ({emp.role})
+                <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+          <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Site</h2>
+          <input type="text" placeholder="Site Name/Address" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
+          <button onClick={addSite} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Site</button>
+        </div>
+
+        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+          <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Assign Sites to Employee</h2>
+          <select value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }}>
+            <option value="">Select Employee</option>
+            {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.username}</option>)}
+          </select>
+          <div style={{ marginBottom: '1rem' }}>
+            {sites.map(site => (
+              <label key={site.id} style={{ display: 'block', marginBottom: '0.5rem' }}>
+                <input type="checkbox" checked={selectedSites.includes(site.id)} onChange={() => {
+                  setSelectedSites(prev => prev.includes(site.id) ? prev.filter(s => s !== site.id) : [...prev, site.id]);
+                }} style={{ marginRight: '0.5rem' }} /> {site.name}
+              </label>
+            ))}
+          </div>
+          <button onClick={assignSites} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Assign Sites</button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites Map</h2>
+        <MapContainer center={[0, 0]} zoom={2} style={{ height: '400px', width: '100%' }}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {sites.map(site => site.lat && site.lon && (
+            <Marker key={site.id} position={[site.lat, site.lon]}>
+              <Popup>{site.name}</Popup>
+            </Marker>
+          ))}
         </MapContainer>
       </div>
-      <button onClick={() => {}} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
+
+      <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
     </div>
   );
 };
