@@ -48,6 +48,16 @@ const AdminDashboard = () => {
     fetchUsers();
     fetchSites();
     fetchAssignments();
+
+    // Fix Leaflet icon paths if needed (common issue)
+    import('leaflet').then(L => {
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+        iconUrl: require('leaflet/dist/images/marker-icon.png'),
+        shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+      });
+    });
   }, []);
 
   const addUser = async () => {
@@ -113,23 +123,25 @@ const AdminDashboard = () => {
     : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
   return (
-    <div>
-      <h1>Admin Dashboard</h1>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+      <h1 style={{ color: '#333' }}>Admin Dashboard</h1>
+      {error && <p style={{ color: 'red', background: '#ffebee', padding: '10px', borderRadius: '5px' }}>{error}</p>}
       <h2>Add User</h2>
       <input
         type="email"
         placeholder="User Email"
         value={newEmail}
         onChange={e => setNewEmail(e.target.value)}
+        style={{ display: 'block', margin: '10px 0', padding: '10px', width: '100%', borderRadius: '5px', border: '1px solid #ccc' }}
       />
       <input
         type="password"
         placeholder="User Password"
         value={newPassword}
         onChange={e => setNewPassword(e.target.value)}
+        style={{ display: 'block', margin: '10px 0', padding: '10px', width: '100%', borderRadius: '5px', border: '1px solid #ccc' }}
       />
-      <label>
+      <label style={{ display: 'block', margin: '10px 0' }}>
         <input
           type="checkbox"
           checked={isAdmin}
@@ -137,17 +149,18 @@ const AdminDashboard = () => {
         />
         Admin?
       </label>
-      <button onClick={addUser}>Add User</button>
+      <button onClick={addUser} style={{ background: 'green', color: 'white', padding: '10px', borderRadius: '5px', border: 'none', cursor: 'pointer' }}>Add User</button>
 
       <h2>Users</h2>
-      <ul>
+      <ul style={{ listStyle: 'none', padding: 0 }}>
         {users.map(user => (
-          <li key={user.id}>
-            {user.email} - {user.user_metadata?.role || 'Employee'}
+          <li key={user.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', padding: '10px', background: '#f9f9f9', borderRadius: '5px' }}>
+            <span style={{ flex: 1 }}>{user.email} - {user.user_metadata?.role || 'Employee'}</span>
             <select
               multiple
               value={tempAssigns[user.id] || assignments[user.id] || []}
               onChange={e => handleSiteChange(user.id, e)}
+              style={{ marginRight: '10px', padding: '5px' }}
             >
               {sites.map(site => (
                 <option key={site.id} value={site.id}>
@@ -155,10 +168,12 @@ const AdminDashboard = () => {
                 </option>
               ))}
             </select>
-            <button onClick={() => assignSites(user.id, tempAssigns[user.id] || assignments[user.id] || [])}>
+            <button onClick={() => assignSites(user.id, tempAssigns[user.id] || assignments[user.id] || [])} style={{ background: 'blue', color: 'white', padding: '5px 10px', borderRadius: '5px', border: 'none', cursor: 'pointer', marginRight: '10px' }}>
               Save Sites
             </button>
-            <button onClick={() => deleteUser(user.id)}>Delete</button>
+            <button onClick={() => deleteUser(user.id)} style={{ background: 'red', color: 'white', padding: '5px 10px', borderRadius: '5px', border: 'none', cursor: 'pointer' }}>
+              Delete
+            </button>
           </li>
         ))}
       </ul>
@@ -168,19 +183,20 @@ const AdminDashboard = () => {
         placeholder="Site Name"
         value={newSiteName}
         onChange={e => setNewSiteName(e.target.value)}
+        style={{ display: 'block', margin: '10px 0', padding: '10px', width: '100%', borderRadius: '5px', border: '1px solid #ccc' }}
       />
-      <button onClick={addSite}>Add Site</button>
+      <button onClick={addSite} style={{ background: 'green', color: 'white', padding: '10px', borderRadius: '5px', border: 'none', cursor: 'pointer' }}>Add Site</button>
 
       <h2>Sites Map</h2>
-      <div>
-        <button onClick={() => setMapType('map')}>Map</button>
-        <button onClick={() => setMapType('satellite')}>Satellite</button>
+      <div style={{ marginBottom: '10px' }}>
+        <button onClick={() => setMapType('map')} style={{ background: mapType === 'map' ? 'gray' : 'white', padding: '5px 10px', borderRadius: '5px', marginRight: '5px' }}>Map</button>
+        <button onClick={() => setMapType('satellite')} style={{ background: mapType === 'satellite' ? 'gray' : 'white', padding: '5px 10px', borderRadius: '5px' }}>Satellite</button>
       </div>
-      <MapContainer center={[45.0, -75.0]} zoom={4} style={{ height: '300px', width: '100%' }}>
+      <MapContainer center={[45.0, -75.0]} zoom={4} style={{ height: '300px', width: '100%', borderRadius: '5px' }}>
         <TileLayer url={tileUrl} />
-        {/* Add Markers for sites if lat/lng added later: sites.map(site => <Marker position={[site.lat, site.lng]}><Popup>{site.name}</Popup></Marker>) */}
+        {/* Add Markers for sites if lat/lng added later */}
       </MapContainer>
-      <button onClick={() => {/* Logout logic */}}>Logout</button>
+      <button onClick={() => {/* Add logout logic, e.g., supabase.auth.signOut() */}} style={{ background: 'red', color: 'white', padding: '10px', borderRadius: '5px', border: 'none', cursor: 'pointer', marginTop: '20px' }}>Logout</button>
     </div>
   );
 };
