@@ -9,15 +9,21 @@ const App = () => {
   const [password, setPassword] = useState('');
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
+  const [appError, setAppError] = useState(null);
 
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: { user } } = await supabase.auth.getUser();
+          setUser(user);
+        }
+      } catch (err) {
+        console.error('Session error:', err);
+        setAppError(err.message);
       }
     };
     checkSession();
@@ -35,9 +41,24 @@ const App = () => {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (err) {
+      console.error('Logout error:', err);
+      setAppError(err.message);
+    }
   };
+
+  if (appError) {
+    return (
+      <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto' }}>
+        <h1>App Error</h1>
+        <p style={{ color: 'red' }}>{appError}</p>
+        <button onClick={() => window.location.reload()}>Retry</button>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
