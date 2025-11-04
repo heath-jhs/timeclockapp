@@ -10,6 +10,7 @@ exports.handler = async (event) => {
       }
     });
     const { data: { users } } = await supabase.auth.admin.listUsers();
+    console.log('Fetched users:', users); // Debug log
     return {
       statusCode: 200,
       body: JSON.stringify(users.map(u => ({ id: u.id, email: u.email, user_metadata: u.user_metadata || {} }))),
