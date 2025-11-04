@@ -167,7 +167,7 @@ const AdminDashboard = ({ logout }) => {
         body: JSON.stringify({ address: newSiteAddress }),
       });
       if (!geocodeResponse.ok) {
-        const { message } = await response.json();
+        const { message } = await geocodeResponse.json();
         throw new Error(message || 'Geocoding failed - address not found');
       }
       const { lat, lon } = await geocodeResponse.json();
@@ -258,12 +258,12 @@ const AdminDashboard = ({ logout }) => {
                   <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
                 </div>
                 <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
-                  <span style={{ marginRight: '0.5rem' }}>Daily Work Hours:</span>
+                  <span style={{ marginRight: '0.5rem' }}>Daily Work Hours (for budgeting):</span>
                   <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => updateDailyTimes(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
-                  <span style={{ marginRight: '0.5rem' }}>Start:</span>
+                  <span style={{ marginRight: '0.5rem' }}>Placeholder Start (for punctuality):</span>
                   <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_start', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
-                  <span style={{ marginRight: '0.5rem' }}>End:</span>
-                  <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_end', e.target.value + ':00'} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
+                  <span style={{ marginRight: '0.5rem' }}>Placeholder End:</span>
+                  <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_end', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
                 </div>
               </li>
             ))}
