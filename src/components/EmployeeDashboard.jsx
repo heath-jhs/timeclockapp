@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-const EmployeeDashboard = () => {
+const EmployeeDashboard = ({ logout }) => {
   const [assignedSites, setAssignedSites] = useState([]);
   const [selectedSite, setSelectedSite] = useState('');
   const [currentEntry, setCurrentEntry] = useState(null);
@@ -63,6 +63,7 @@ const EmployeeDashboard = () => {
       if (error) throw error;
       setCurrentEntry({ site_id: selectedSite, clock_in_time: new Date().toISOString() });
       setSelectedSite('');
+      setError(null);
     } catch (err) {
       setError(err.message);
     }
@@ -76,6 +77,7 @@ const EmployeeDashboard = () => {
         .eq('id', currentEntry.id);
       if (error) throw error;
       setCurrentEntry(null);
+      setError(null);
     } catch (err) {
       setError(err.message);
     }
@@ -102,7 +104,7 @@ const EmployeeDashboard = () => {
           </div>
         )}
       </div>
-      <button onClick={() => {}} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
+      <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
     </div>
   );
 };
