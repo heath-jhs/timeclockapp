@@ -43,11 +43,12 @@ const AdminDashboard = ({ logout }) => {
   const [newAssignEnd, setNewAssignEnd] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [siteSort, setSiteSort] = useState('Recent');
 
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   const refreshAll = async () => {
-    setError(null); // Clear error on retry
+    setError(null);
     await Promise.all([
       fetchEmployees(),
       fetchSites(),
@@ -79,7 +80,7 @@ const AdminDashboard = ({ logout }) => {
 
   const fetchSites = async () => {
     try {
-      const { data, error } = await supabase.from('sites').select('*');
+      const { data, error } = await supabase.from('sites').select('*').order('created_at', { ascending: false });
       if (error) throw error;
       setSites(data);
     } catch (err) {
@@ -91,7 +92,7 @@ const AdminDashboard = ({ logout }) => {
     try {
       const { data, error } = await supabase
         .from('employee_sites')
-        .select('*, employee:employee_id ( username ), site:site_id ( name )')
+        .select('*, employee:employee_id ( username, work_hours ), site:site_id ( name )')
         .order('start_date', { ascending: false });
       if (error) throw error;
       setAssignments(data);
@@ -110,6 +111,16 @@ const AdminDashboard = ({ logout }) => {
       setTimeEntries(data);
     } catch (err) {
       setError('Time entries fetch failed: ' + err.message);
+    }
+  };
+
+  const updateWorkHours = async (id, hours) => {
+    try {
+      const { error } = await supabase.from('profiles').update({ work_hours: parseFloat(hours) }).eq('id', id);
+      if (error) throw error;
+      await refreshAll();
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -174,6 +185,10 @@ const AdminDashboard = ({ logout }) => {
 
   const assignSites = async () => {
     try {
+      for (const siteId of selectedSites) {
+        const { data: overlap } = await supabase.rpc('check_assignment_overlap', { emp_id: selectedEmployee, new_start: newAssignStart ? new Date(newAssignStart).toISOString() : null, new_end: newAssignEnd ? new Date(newAssignEnd).toISOString() : null, new_site: siteId });
+        if (!overlap) throw new Error('Conflict—double booking for employee');
+      }
       const inserts = selectedSites.map(siteId => ({ 
         employee_id: selectedEmployee, 
         site_id: siteId, 
@@ -203,9 +218,60 @@ const AdminDashboard = ({ logout }) => {
     return diff.toFixed(2) + ' hours';
   };
 
-  const getSiteAssignments = (siteId) => {
-    return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateDuration(a)})`).join('\n');
+  const calculateBudgetedDuration = (assign) => {
+    if (!assign.start_date) return 'Undated';
+    const workHours = assign.employee.work_hours || 8;
+    const start = new Date(assign.start_date);
+    const end = assign.end_date ? new Date(assign.end_date) : new Date();
+    const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    return (days * workHours).toFixed(2) + ' hours';
   };
+
+  const getSiteAssignments = (siteId) => {
+    return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, Budgeted: ${calculateBudgetedDuration(a)})`).join('\n');
+  };
+
+  const exportReports = () => {
+    const csv = [
+      ['Employee', 'Site', 'Scheduled Start', 'Scheduled End', 'Budgeted Hours', 'Actual In', 'Actual Out', 'Actual Hours', 'Punctuality', 'Efficiency %']
+    ];
+    assignments.forEach(assign => {
+      const matchingEntries = timeEntries.filter(e => e.employee_id === assign.employee_id && e.site_id === assign.site_id && new Date(e.clock_in_time) >= new Date(assign.start_date) && (assign.end_date ? new Date(e.clock_out_time) <= new Date(assign.end_date) : true));
+      const actualHours = matchingEntries.reduce((sum, e) => sum + (e.clock_out_time ? (new Date(e.clock_out_time) - new Date(e.clock_in_time)) / (1000 * 60 * 60) : 0), 0);
+      const budgeted = parseFloat(calculateBudgetedDuration(assign));
+      const efficiency = budgeted > 0 ? ((actualHours / budgeted) * 100).toFixed(2) : 'N/A';
+      const punctuality = matchingEntries.length > 0 ? 'On time' : 'Late/Missing'; // Basic, expand as needed
+      csv.push([
+        assign.employee.username,
+        assign.site.name,
+        assign.start_date ? new Date(assign.start_date).toLocaleString() : 'N/A',
+        assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A',
+        budgeted,
+        matchingEntries.map(e => new Date(e.clock_in_time).toLocaleString()).join('; '),
+        matchingEntries.map(e => e.clock_out_time ? new Date(e.clock_out_time).toLocaleString() : 'N/A').join('; '),
+        actualHours.toFixed(2),
+        punctuality,
+        efficiency
+      ]);
+    });
+    const blob = new Blob([csv.map(row => row.join(',')).join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'time_reports.csv';
+    a.click();
+  };
+
+  const sortSites = (sites, sortType) => {
+    if (sortType === 'A-Z') {
+      return [...sites].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortType === 'Z-A') {
+      return [...sites].sort((a, b) => b.name.localeCompare(a.name));
+    }
+    return sites; // Recent is default from DB order
+  };
+
+  const sortedSites = sortSites(sites, siteSort);
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
@@ -231,7 +297,7 @@ const AdminDashboard = ({ logout }) => {
           <ul style={{ listStyleType: 'none' }}>
             {employees.map(emp => (
               <li key={emp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
-                {emp.username} ({emp.role})
+                {emp.username} ({emp.role}) - Work Hours: <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => updateWorkHours(emp.id, e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
                 <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
               </li>
             ))}
@@ -253,8 +319,13 @@ const AdminDashboard = ({ logout }) => {
             <option value="">Select Employee</option>
             {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.username}</option>)}
           </select>
+          <select value={siteSort} onChange={e => setSiteSort(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }}>
+            <option>Recent</option>
+            <option>A-Z</option>
+            <option>Z-A</option>
+          </select>
           <div style={{ marginBottom: '1rem' }}>
-            {sites.map(site => (
+            {sortedSites.map(site => (
               <label key={site.id} style={{ display: 'block', marginBottom: '0.5rem' }}>
                 <input type="checkbox" checked={selectedSites.includes(site.id)} onChange={() => {
                   setSelectedSites(prev => prev.includes(site.id) ? prev.filter(s => s !== site.id) : [...prev, site.id]);
@@ -280,7 +351,7 @@ const AdminDashboard = ({ logout }) => {
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>Start</th>
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>End</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Duration</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Budgeted Duration</th>
             </tr>
           </thead>
           <tbody>
@@ -290,7 +361,7 @@ const AdminDashboard = ({ logout }) => {
                 <td style={{ padding: '0.5rem' }}>{assign.site?.name || 'Unknown'}</td>
                 <td style={{ padding: '0.5rem' }}>{assign.start_date ? new Date(assign.start_date).toLocaleString() : 'N/A'}</td>
                 <td style={{ padding: '0.5rem' }}>{assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A'}</td>
-                <td style={{ padding: '0.5rem' }}>{calculateDuration(assign)}</td>
+                <td style={{ padding: '0.5rem' }}>{calculateBudgetedDuration(assign)}</td>
               </tr>
             ))}
           </tbody>
@@ -337,7 +408,8 @@ const AdminDashboard = ({ logout }) => {
           ))}
         </MapContainer>
       </div>
-      <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
+      <button onClick={exportReports} style={{ background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Export Reports CSV</button>
+      <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem', marginLeft: '1rem' }}>Logout</button>
     </div>
   );
 };
