@@ -58,7 +58,10 @@ const AdminDashboard = ({ logout }) => {
         method: 'POST',
         body: JSON.stringify({ email: newEmployeeEmail, isAdmin: newEmployeeIsAdmin }),
       });
-      if (!response.ok) throw new Error('Failed to add user');
+      if (!response.ok) {
+        const { message } = await response.json();
+        throw new Error(message || 'Failed to add user');
+      }
       fetchEmployees();
       setNewEmployeeEmail('');
       setNewEmployeeIsAdmin(false);
@@ -84,12 +87,15 @@ const AdminDashboard = ({ logout }) => {
       return;
     }
     try {
-      const response = await fetch('/.netlify/functions/geocode', {
+      const geocodeResponse = await fetch('/.netlify/functions/geocode', {
         method: 'POST',
         body: JSON.stringify({ address: newSiteAddress }),
       });
-      if (!response.ok) throw new Error('Geocoding failed');
-      const { lat, lon } = await response.json();
+      if (!geocodeResponse.ok) {
+        const { message } = await geocodeResponse.json();
+        throw new Error(message || 'Geocoding failed');
+      }
+      const { lat, lon } = await geocodeResponse.json();
       const { error } = await supabase.from('sites').insert({ name: newSiteName, address: newSiteAddress, lat, lon });
       if (error) throw error;
       fetchSites();
@@ -113,6 +119,13 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
+
+  // Calculate average lat/lon for map center if sites exist
+  const mapCenter = sites.length > 0 ? [
+    sites.reduce((sum, site) => sum + (site.lat || 0), 0) / sites.length,
+    sites.reduce((sum, site) => sum + (site.lon || 0), 0) / sites.length
+  ] : [37.0902, -95.7129];
+  const mapZoom = sites.length > 0 ? 10 : 4;
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
@@ -165,11 +178,11 @@ const AdminDashboard = ({ logout }) => {
       </div>
       <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites Map</h2>
-        <MapContainer center={[37.0902, -95.7129]} zoom={4} style={{ height: '400px', width: '100%' }}>  {/* Default to US center */}
+        <MapContainer center={mapCenter} zoom={mapZoom} style={{ height: '400px', width: '100%' }}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           {sites.map(site => site.lat && site.lon && (
             <Marker key={site.id} position={[site.lat, site.lon]}>
-              <Popup>{site.name}</Popup>
+              <Popup>{site.name} - {site.address}</Popup>
             </Marker>
           ))}
         </MapContainer>
