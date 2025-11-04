@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -37,8 +39,8 @@ const AdminDashboard = ({ logout }) => {
   const [newSiteAddress, setNewSiteAddress] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedSites, setSelectedSites] = useState([]);
-  const [newAssignStart, setNewAssignStart] = useState('');
-  const [newAssignEnd, setNewAssignEnd] = useState('');
+  const [newAssignStart, setNewAssignStart] = useState(null);
+  const [newAssignEnd, setNewAssignEnd] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
@@ -173,15 +175,15 @@ const AdminDashboard = ({ logout }) => {
       const inserts = selectedSites.map(siteId => ({ 
         employee_id: selectedEmployee, 
         site_id: siteId, 
-        start_date: newAssignStart || null,
-        end_date: newAssignEnd || null 
+        start_date: newAssignStart ? new Date(newAssignStart).toISOString() : null,
+        end_date: newAssignEnd ? new Date(newAssignEnd).toISOString() : null 
       }));
       const { error } = await supabase.from('employee_sites').insert(inserts);
       if (error) throw error;
       setSelectedEmployee('');
       setSelectedSites([]);
-      setNewAssignStart('');
-      setNewAssignEnd('');
+      setNewAssignStart(null);
+      setNewAssignEnd(null);
       setError(null);
       setSuccess('Sites assigned successfully');
       await refreshAll();
@@ -197,6 +199,10 @@ const AdminDashboard = ({ logout }) => {
     const end = new Date(entry.end_date || entry.clock_out_time);
     const diff = (end - start) / (1000 * 60 * 60); // hours
     return diff.toFixed(2) + ' hours';
+  };
+
+  const getSiteAssignments = (siteId) => {
+    return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateDuration(a)})`).join('\n');
   };
 
   return (
@@ -248,8 +254,8 @@ const AdminDashboard = ({ logout }) => {
               </label>
             ))}
           </div>
-          <input type="datetime-local" placeholder="Start Date (optional)" value={newAssignStart} onChange={e => setNewAssignStart(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
-          <input type="datetime-local" placeholder="End Date (optional)" value={newAssignEnd} onChange={e => setNewAssignEnd(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
+          <DatePicker selected={newAssignStart} onChange={date => setNewAssignStart(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="Start Date (optional)" style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} wrapperClassName="w-full" />
+          <DatePicker selected={newAssignEnd} onChange={date => setNewAssignEnd(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="End Date (optional)" style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} wrapperClassName="w-full" />
           <button onClick={assignSites} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Assign Sites</button>
         </div>
       </div>
@@ -310,7 +316,11 @@ const AdminDashboard = ({ logout }) => {
           <MapBounds sites={sites} />
           {sites.map(site => site.lat && site.lon && (
             <Marker key={site.id} position={[site.lat, site.lon]}>
-              <Popup>{site.name} - {site.address}</Popup>
+              <Popup>
+                {site.name} - {site.address}<br />
+                Assigned Employees:<br />
+                {getSiteAssignments(site.id) || 'None'}
+              </Popup>
             </Marker>
           ))}
         </MapContainer>
