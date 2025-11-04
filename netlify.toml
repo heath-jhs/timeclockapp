@@ -1,11 +1,6 @@
-#[build]
-  #command = "npm run build"
-  functions = "netlify/functions"
-  publish = "dist"  # Adjust if your build output is different, e.g., "build" for Vite
+# [build]
+#   command = "npm run build"
+#   publish = "dist"
 
-[dev]
-  command = "npm start"
-  port = 8888
-
-[[plugins]]
-  package = "@netlify/plugin-functions-install-core"
+[functions]
+  directory = "netlify/functions"
