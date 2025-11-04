@@ -17,10 +17,13 @@ exports.handler = async (event) => {
       }
     });
     const { error } = await supabase.auth.admin.deleteUser(userId);
-    if (error) throw error;
+    if (error) {
+      console.log('Delete user error details:', error); // For Netlify logs debug
+      throw error;
+    }
     return { statusCode: 200, body: JSON.stringify({ message: 'User deleted' }) };
   } catch (error) {
     console.error(error);
-    return { statusCode: 500, body: JSON.stringify({ message: error.message }) };
+    return { statusCode: 500, body: JSON.stringify({ message: error.message, details: error.details || 'No details' }) };
   }
 };
