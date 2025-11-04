@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -14,6 +14,18 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
+const MapBounds = ({ sites }) => {
+  const map = useMap();
+  useEffect(() => {
+    const validSites = sites.filter(site => site.lat && site.lon);
+    if (validSites.length > 0) {
+      const bounds = L.latLngBounds(validSites.map(site => [site.lat, site.lon]));
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [sites, map]);
+  return null;
+};
+
 const AdminDashboard = ({ logout }) => {
   const [employees, setEmployees] = useState([]);
   const [sites, setSites] = useState([]);
@@ -24,6 +36,7 @@ const AdminDashboard = ({ logout }) => {
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedSites, setSelectedSites] = useState([]);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
@@ -31,6 +44,13 @@ const AdminDashboard = ({ logout }) => {
     fetchEmployees();
     fetchSites();
   }, []);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   const fetchEmployees = async () => {
     try {
@@ -66,6 +86,7 @@ const AdminDashboard = ({ logout }) => {
       setNewEmployeeEmail('');
       setNewEmployeeIsAdmin(false);
       setError(null);
+      setSuccess('Employee added successfully');
     } catch (err) {
       setError(err.message);
     }
@@ -93,7 +114,7 @@ const AdminDashboard = ({ logout }) => {
       });
       if (!geocodeResponse.ok) {
         const { message } = await geocodeResponse.json();
-        throw new Error(message || 'Geocoding failed');
+        throw new Error(message || 'Geocoding failed - address not found');
       }
       const { lat, lon } = await geocodeResponse.json();
       const { error } = await supabase.from('sites').insert({ name: newSiteName, address: newSiteAddress, lat, lon });
@@ -102,6 +123,7 @@ const AdminDashboard = ({ logout }) => {
       setNewSiteName('');
       setNewSiteAddress('');
       setError(null);
+      setSuccess('Site added successfully');
     } catch (err) {
       setError(err.message);
     }
@@ -115,22 +137,17 @@ const AdminDashboard = ({ logout }) => {
       setSelectedEmployee('');
       setSelectedSites([]);
       setError(null);
+      setSuccess('Sites assigned successfully');
     } catch (err) {
       setError(err.message);
     }
   };
 
-  // Calculate average lat/lon for map center if sites exist
-  const mapCenter = sites.length > 0 ? [
-    sites.reduce((sum, site) => sum + (site.lat || 0), 0) / sites.length,
-    sites.reduce((sum, site) => sum + (site.lon || 0), 0) / sites.length
-  ] : [37.0902, -95.7129];
-  const mapZoom = sites.length > 0 ? 10 : 4;
-
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
       <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Admin Dashboard</h1>
       {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{error}</div>}
+      {success && <div style={{ background: '#d4edda', color: '#155724', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{success}</div>}
       
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
@@ -178,8 +195,9 @@ const AdminDashboard = ({ logout }) => {
       </div>
       <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites Map</h2>
-        <MapContainer center={mapCenter} zoom={mapZoom} style={{ height: '400px', width: '100%' }}>
+        <MapContainer center={[37.0902, -95.7129]} zoom={4} style={{ height: '400px', width: '100%' }}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <MapBounds sites={sites} />
           {sites.map(site => site.lat && site.lon && (
             <Marker key={site.id} position={[site.lat, site.lon]}>
               <Popup>{site.name} - {site.address}</Popup>
