@@ -28,7 +28,6 @@ const App = () => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       setUser(data.user);
-      console.log('User metadata:', data.user.user_metadata); // Debug log
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -52,7 +51,7 @@ const App = () => {
     );
   }
 
-  const role = user.user_metadata?.role || 'Employee';
+  const role = user.app_metadata?.role || 'Employee';
 
   return (
     <Router>
