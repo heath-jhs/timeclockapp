@@ -3,30 +3,24 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
+  const { address } = JSON.parse(event.body);
+
+  if (!address) {
+    return { statusCode: 400, body: JSON.stringify({ message: 'Missing address' }) };
+  }
+
   try {
-    const { address } = JSON.parse(event.body);
-    if (!address) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Missing address in request' }) };
-    }
-
-    const apiKey = process.env.GOOGLE_MAPS_KEY;
-    if (!apiKey) {
-      return { statusCode: 500, body: JSON.stringify({ error: 'Missing Google Maps API key' }) };
-    }
-
-    const encodedAddress = encodeURIComponent(address);
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`;
-    const response = await fetch(url);
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`, {
+      headers: { 'User-Agent': 'TimeClockApp/1.0 (your.email@example.com)' }  // Replace with your email for API compliance
+    });
     const data = await response.json();
-
-    if (data.status !== 'OK') {
-      return { statusCode: 400, body: JSON.stringify({ error: data.status, message: data.error_message || 'Geocoding failed' }) };
+    if (data.length === 0) {
+      throw new Error('Address not found');
     }
-
-    const { lat, lng } = data.results[0].geometry.location;
-    return { statusCode: 200, body: JSON.stringify({ lat, lng }) };
-  } catch (err) {
-    console.error(err);
-    return { statusCode: 500, body: JSON.stringify({ error: 'Server error' }) };
+    const { lat, lon } = data[0];
+    return { statusCode: 200, body: JSON.stringify({ lat: parseFloat(lat), lon: parseFloat(lon) }) };
+  } catch (error) {
+    console.error(error);
+    return { statusCode: 500, body: JSON.stringify({ message: error.message }) };
   }
 };
