@@ -3,9 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
-
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [sites, setSites] = useState([]);
@@ -41,7 +38,7 @@ const AdminDashboard = () => {
     };
     const fetchAssignments = async () => {
       try {
-        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+        const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
         const { data, error } = await supabase.from('employee_sites').select('*');
         if (error) throw error;
         const assigns = data.reduce((acc, { employee_id, site_id }) => {
@@ -137,10 +134,10 @@ const AdminDashboard = () => {
     : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', background: '#f8f9fa' }}>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
       <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Admin Dashboard</h1>
-      {error && <p style={{ color: '#9b2c2c', background: '#fed7d7', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>{error}</p>}
-      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1rem' }}>
+      {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>{error}</div>}
+      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add User</h2>
         <input type="email" placeholder="User Email" value={newEmail} onChange={e => setNewEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
         <input type="password" placeholder="User Password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
@@ -150,27 +147,27 @@ const AdminDashboard = () => {
         </label>
         <button onClick={addUser} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add User</button>
       </div>
-      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1rem' }}>
+      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Users</h2>
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {users.map(user => (
-            <li key={user.id} style={{ display: 'flex', alignItems: 'center', padding: '1rem 0', borderBottom: '1px solid #e2e8f0' }}>
-              <span style={{ flex: 1 }}>{user.email} - {user.user_metadata?.role || 'Employee'}</span>
+            <li key={user.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', padding: '1rem 0', borderBottom: '1px solid #e2e8f0' }}>
+              <span style={{ flex: '1 1 200px', marginBottom: '0.5rem' }}>{user.email} - {user.user_metadata?.role || 'Employee'}</span>
               <select
                 multiple
                 value={tempAssigns[user.id] || assignments[user.id] || []}
                 onChange={e => handleSiteChange(user.id, e)}
-                style={{ width: '10rem', height: '6rem', marginRight: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.5rem' }}
+                style={{ flex: '1 1 200px', height: '100px', marginBottom: '0.5rem', marginRight: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.5rem' }}
               >
                 {sites.length === 0 ? <option disabled>No sites available - add one below</option> : sites.map(site => <option key={site.id} value={site.id}>{site.name}</option>)}
               </select>
-              <button onClick={() => assignSites(user.id, tempAssigns[user.id] || assignments[user.id] || [])} style={{ background: '#4299e1', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginRight: '1rem' }}>Save Sites</button>
-              <button onClick={() => deleteUser(user.id)} style={{ background: '#f56565', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+              <button onClick={() => assignSites(user.id, tempAssigns[user.id] || assignments[user.id] || [])} style={{ background: '#4299e1', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginRight: '1rem', marginBottom: '0.5rem' }}>Save Sites</button>
+              <button onClick={() => deleteUser(user.id)} style={{ background: '#f56565', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginBottom: '0.5rem' }}>Delete</button>
             </li>
           ))}
         </ul>
       </div>
-      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1rem' }}>
+      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Site</h2>
         <input placeholder="Site Name" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
         <button onClick={addSite} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Site</button>
@@ -181,11 +178,11 @@ const AdminDashboard = () => {
           <button onClick={() => setMapType('map')} style={{ background: mapType === 'map' ? '#a0aec0' : 'white', color: mapType === 'map' ? 'white' : '#333', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', marginRight: '0.5rem', cursor: 'pointer' }}>Map</button>
           <button onClick={() => setMapType('satellite')} style={{ background: mapType === 'satellite' ? '#a0aec0' : 'white', color: mapType === 'satellite' ? 'white' : '#333', padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', cursor: 'pointer' }}>Satellite</button>
         </div>
-        <MapContainer center={[45.0, -75.0]} zoom={4} style={{ height: '300px', width: '100%', borderRadius: '0.375rem' }}>
+        <MapContainer center={[45.0, -75.0]} zoom={4} style={{ height: '300px', width: '100%' }}>
           <TileLayer url={tileUrl} />
         </MapContainer>
       </div>
-      <button onClick={() => {}} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1rem' }}>Logout</button>
+      <button onClick={() => {}} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
     </div>
   );
 };
