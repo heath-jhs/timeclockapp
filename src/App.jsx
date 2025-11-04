@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import AdminDashboard from './AdminDashboard.jsx';
-import EmployeeDashboard from './EmployeeDashboard.jsx';
+import AdminDashboard from './AdminDashboard';
+import EmployeeDashboard from './EmployeeDashboard';
 
 const App = () => {
   const [email, setEmail] = useState('');
