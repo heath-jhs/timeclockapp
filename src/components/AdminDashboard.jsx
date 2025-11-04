@@ -42,11 +42,17 @@ const AdminDashboard = ({ logout }) => {
 
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
+  const refreshAll = async () => {
+    await Promise.all([
+      fetchEmployees(),
+      fetchSites(),
+      fetchAssignments(),
+      fetchTimeEntries()
+    ]);
+  };
+
   useEffect(() => {
-    fetchEmployees();
-    fetchSites();
-    fetchAssignments();
-    fetchTimeEntries();
+    refreshAll();
   }, []);
 
   useEffect(() => {
@@ -62,7 +68,7 @@ const AdminDashboard = ({ logout }) => {
       if (error) throw error;
       setEmployees(data);
     } catch (err) {
-      setError(err.message);
+      setError('Employees fetch failed: ' + err.message);
     }
   };
 
@@ -72,7 +78,7 @@ const AdminDashboard = ({ logout }) => {
       if (error) throw error;
       setSites(data);
     } catch (err) {
-      setError(err.message);
+      setError('Sites fetch failed: ' + err.message);
     }
   };
 
@@ -84,7 +90,7 @@ const AdminDashboard = ({ logout }) => {
       if (error) throw error;
       setAssignments(data);
     } catch (err) {
-      setError(err.message);
+      setError('Assignments fetch failed: ' + err.message);
     }
   };
 
@@ -97,7 +103,7 @@ const AdminDashboard = ({ logout }) => {
       if (error) throw error;
       setTimeEntries(data);
     } catch (err) {
-      setError(err.message);
+      setError('Time entries fetch failed: ' + err.message);
     }
   };
 
@@ -111,11 +117,11 @@ const AdminDashboard = ({ logout }) => {
         const { message } = await response.json();
         throw new Error(message || 'Failed to add user');
       }
-      fetchEmployees();
       setNewEmployeeEmail('');
       setNewEmployeeIsAdmin(false);
       setError(null);
       setSuccess('Employee added successfully');
+      await refreshAll();
     } catch (err) {
       setError(err.message);
     }
@@ -125,9 +131,8 @@ const AdminDashboard = ({ logout }) => {
     try {
       const { error } = await supabase.from('profiles').delete().eq('id', id);
       if (error) throw error;
-      fetchEmployees();
-      fetchAssignments();
-      fetchTimeEntries();
+      setSuccess('Employee deleted successfully');
+      await refreshAll();
     } catch (err) {
       setError(err.message);
     }
@@ -150,11 +155,11 @@ const AdminDashboard = ({ logout }) => {
       const { lat, lon } = await geocodeResponse.json();
       const { error } = await supabase.from('sites').insert({ name: newSiteName, address: newSiteAddress, lat, lon });
       if (error) throw error;
-      fetchSites();
       setNewSiteName('');
       setNewSiteAddress('');
       setError(null);
       setSuccess('Site added successfully');
+      await refreshAll();
     } catch (err) {
       setError(err.message);
     }
@@ -165,11 +170,11 @@ const AdminDashboard = ({ logout }) => {
       const inserts = selectedSites.map(siteId => ({ employee_id: selectedEmployee, site_id: siteId }));
       const { error } = await supabase.from('employee_sites').insert(inserts);
       if (error) throw error;
-      fetchAssignments();
       setSelectedEmployee('');
       setSelectedSites([]);
       setError(null);
       setSuccess('Sites assigned successfully');
+      await refreshAll();
     } catch (err) {
       setError(err.message);
     }
@@ -186,7 +191,9 @@ const AdminDashboard = ({ logout }) => {
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
       <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Admin Dashboard</h1>
-      {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{error}</div>}
+      {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>
+        {error} <button onClick={refreshAll} style={{ background: '#4299e1', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Retry</button>
+      </div>}
       {success && <div style={{ background: '#d4edda', color: '#155724', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{success}</div>}
       
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
@@ -245,8 +252,8 @@ const AdminDashboard = ({ logout }) => {
           <tbody>
             {assignments.map((assign, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '0.5rem' }}>{assign.employee.username}</td>
-                <td style={{ padding: '0.5rem' }}>{assign.site.name}</td>
+                <td style={{ padding: '0.5rem' }}>{assign.employee?.username || 'Unknown'}</td>
+                <td style={{ padding: '0.5rem' }}>{assign.site?.name || 'Unknown'}</td>
               </tr>
             ))}
           </tbody>
@@ -267,8 +274,8 @@ const AdminDashboard = ({ logout }) => {
           <tbody>
             {timeEntries.map((entry, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '0.5rem' }}>{entry.employee.username}</td>
-                <td style={{ padding: '0.5rem' }}>{entry.site.name}</td>
+                <td style={{ padding: '0.5rem' }}>{entry.employee?.username || 'Unknown'}</td>
+                <td style={{ padding: '0.5rem' }}>{entry.site?.name || 'Unknown'}</td>
                 <td style={{ padding: '0.5rem' }}>{new Date(entry.clock_in_time).toLocaleString()}</td>
                 <td style={{ padding: '0.5rem' }}>{entry.clock_out_time ? new Date(entry.clock_out_time).toLocaleString() : 'N/A'}</td>
                 <td style={{ padding: '0.5rem' }}>{calculateDuration(entry)}</td>
