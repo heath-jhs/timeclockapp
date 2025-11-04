@@ -92,7 +92,7 @@ const AdminDashboard = ({ logout }) => {
     try {
       const { data, error } = await supabase
         .from('employee_sites')
-        .select('*, employee:employee_id ( username, daily_start, daily_end ), site:site_id ( name )')
+        .select('*, employee:employee_id ( username ), site:site_id ( name )')
         .order('start_date', { ascending: false });
       if (error) throw error;
       setAssignments(data);
@@ -105,7 +105,7 @@ const AdminDashboard = ({ logout }) => {
     try {
       const { data, error } = await supabase
         .from('time_entries')
-        .select('*, employee:employee_id ( username, daily_start, daily_end ), site:site_id ( name )')
+        .select('*, employee:employee_id ( username ), site:site_id ( name )')
         .order('clock_in_time', { ascending: false });
       if (error) throw error;
       setTimeEntries(data);
@@ -167,7 +167,7 @@ const AdminDashboard = ({ logout }) => {
         body: JSON.stringify({ address: newSiteAddress }),
       });
       if (!geocodeResponse.ok) {
-        const { message } = await geocodeResponse.json();
+        const { message } = await response.json();
         throw new Error(message || 'Geocoding failed - address not found');
       }
       const { lat, lon } = await geocodeResponse.json();
@@ -252,10 +252,19 @@ const AdminDashboard = ({ logout }) => {
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Employees</h2>
           <ul style={{ listStyleType: 'none' }}>
             {employees.map(emp => (
-              <li key={emp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
-                {emp.username} ({emp.role || 'Employee'})
-                <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_start', e.target.value + ':00')} style={{ marginLeft: '0.5rem', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} /> - <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_end', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
-                <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+              <li key={emp.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {emp.username} ({emp.role || 'Employee'})
+                  <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                </div>
+                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ marginRight: '0.5rem' }}>Daily Work Hours:</span>
+                  <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => updateDailyTimes(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
+                  <span style={{ marginRight: '0.5rem' }}>Start:</span>
+                  <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_start', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
+                  <span style={{ marginRight: '0.5rem' }}>End:</span>
+                  <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_end', e.target.value + ':00'} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
+                </div>
               </li>
             ))}
           </ul>
