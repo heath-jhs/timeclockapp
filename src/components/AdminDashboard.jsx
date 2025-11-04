@@ -90,7 +90,7 @@ const AdminDashboard = ({ logout }) => {
       });
       if (!response.ok) throw new Error('Geocoding failed');
       const { lat, lon } = await response.json();
-      const { error } = await supabase.from('sites').insert({ name: newSiteName, lat, lon });
+      const { error } = await supabase.from('sites').insert({ name: newSiteName, address: newSiteAddress, lat, lon });
       if (error) throw error;
       fetchSites();
       setNewSiteName('');
