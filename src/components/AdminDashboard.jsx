@@ -37,6 +37,8 @@ const AdminDashboard = ({ logout }) => {
   const [newSiteAddress, setNewSiteAddress] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedSites, setSelectedSites] = useState([]);
+  const [newAssignStart, setNewAssignStart] = useState('');
+  const [newAssignEnd, setNewAssignEnd] = useState('');
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
@@ -86,7 +88,8 @@ const AdminDashboard = ({ logout }) => {
     try {
       const { data, error } = await supabase
         .from('employee_sites')
-        .select('*, employee:employee_id ( username ), site:site_id ( name )');
+        .select('*, employee:employee_id ( username ), site:site_id ( name )')
+        .order('start_date', { ascending: false });
       if (error) throw error;
       setAssignments(data);
     } catch (err) {
@@ -167,11 +170,18 @@ const AdminDashboard = ({ logout }) => {
 
   const assignSites = async () => {
     try {
-      const inserts = selectedSites.map(siteId => ({ employee_id: selectedEmployee, site_id: siteId }));
+      const inserts = selectedSites.map(siteId => ({ 
+        employee_id: selectedEmployee, 
+        site_id: siteId, 
+        start_date: newAssignStart || null,
+        end_date: newAssignEnd || null 
+      }));
       const { error } = await supabase.from('employee_sites').insert(inserts);
       if (error) throw error;
       setSelectedEmployee('');
       setSelectedSites([]);
+      setNewAssignStart('');
+      setNewAssignEnd('');
       setError(null);
       setSuccess('Sites assigned successfully');
       await refreshAll();
@@ -181,10 +191,11 @@ const AdminDashboard = ({ logout }) => {
   };
 
   const calculateDuration = (entry) => {
-    if (!entry.clock_out_time) return 'Ongoing';
-    const inTime = new Date(entry.clock_in_time);
-    const outTime = new Date(entry.clock_out_time);
-    const diff = (outTime - inTime) / (1000 * 60 * 60); // hours
+    if (!entry.end_date && !entry.clock_out_time) return 'Ongoing';
+    if (!entry.start_date && !entry.clock_in_time) return 'Undated';
+    const start = new Date(entry.start_date || entry.clock_in_time);
+    const end = new Date(entry.end_date || entry.clock_out_time);
+    const diff = (end - start) / (1000 * 60 * 60); // hours
     return diff.toFixed(2) + ' hours';
   };
 
@@ -237,6 +248,8 @@ const AdminDashboard = ({ logout }) => {
               </label>
             ))}
           </div>
+          <input type="datetime-local" placeholder="Start Date (optional)" value={newAssignStart} onChange={e => setNewAssignStart(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
+          <input type="datetime-local" placeholder="End Date (optional)" value={newAssignEnd} onChange={e => setNewAssignEnd(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
           <button onClick={assignSites} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Assign Sites</button>
         </div>
       </div>
@@ -247,6 +260,9 @@ const AdminDashboard = ({ logout }) => {
             <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Start</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>End</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Duration</th>
             </tr>
           </thead>
           <tbody>
@@ -254,6 +270,9 @@ const AdminDashboard = ({ logout }) => {
               <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
                 <td style={{ padding: '0.5rem' }}>{assign.employee?.username || 'Unknown'}</td>
                 <td style={{ padding: '0.5rem' }}>{assign.site?.name || 'Unknown'}</td>
+                <td style={{ padding: '0.5rem' }}>{assign.start_date ? new Date(assign.start_date).toLocaleString() : 'N/A'}</td>
+                <td style={{ padding: '0.5rem' }}>{assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A'}</td>
+                <td style={{ padding: '0.5rem' }}>{calculateDuration(assign)}</td>
               </tr>
             ))}
           </tbody>
