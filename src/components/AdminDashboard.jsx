@@ -1,262 +1,186 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
-import { useAuth } from '../AuthProvider';
-import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
+import { createClient } from '@supabase/supabase-js';
+import { MapContainer, TileLayer } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
-const mapContainerStyle = {
-  height: '400px',
-  width: '100%'
-};
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
-  const [sites, setSites] = useState([]);
   const [users, setUsers] = useState([]);
-  const [siteName, setSiteName] = useState('');
-  const [siteAddress, setSiteAddress] = useState('');
-  const [userEmail, setUserEmail] = useState('');
-  const [userPassword, setUserPassword] = useState('');
+  const [sites, setSites] = useState([]);
+  const [assignments, setAssignments] = useState({}); // {userId: [siteIds]}
+  const [tempAssigns, setTempAssigns] = useState({});
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [usersLoading, setUsersLoading] = useState(true);
-  const [usersError, setUsersError] = useState('');
+  const [newSiteName, setNewSiteName] = useState('');
+  const [error, setError] = useState(null);
+  const [mapType, setMapType] = useState('map'); // For Map/Satellite tabs
 
   useEffect(() => {
-    if (user) {
-      fetchSites();
-      fetchUsers();
-    }
-  }, [user]);
-
-  const fetchSites = async () => {
-    const { data, error } = await supabase.from('sites').select('*');
-    if (error) console.error(error);
-    else setSites(data || []);
-  };
-
-  const fetchUsers = async () => {
-    setUsersLoading(true);
-    setUsersError('');
-    try {
+    const fetchUsers = async () => {
       const res = await fetch('/.netlify/functions/list-users');
-      console.log('list-users status:', res.status); // For debug
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || 'Failed to fetch users: ' + res.status);
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data);
       }
-      const data = await res.json();
-      setUsers(data || []);
-    } catch (err) {
-      console.error('Fetch users error:', err);
-      setUsersError('Error loading users: ' + err.message);
-    } finally {
-      setUsersLoading(false);
-    }
-  };
-
-  const handleCreateSite = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      console.log('Geocoding address:', siteAddress);
-      const res = await fetch('/.netlify/functions/geocode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: siteAddress }),
-      });
-      console.log('Full geocode response status:', res.status, 'ok:', res.ok);
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || 'Geocode function error: ' + res.status);
+    };
+    const fetchSites = async () => {
+      const res = await fetch('/.netlify/functions/list-sites');
+      if (res.ok) {
+        setSites(await res.json());
       }
-      const { lat, lng } = await res.json();
-      console.log('Geocode success:', lat, lng);
-      const { error: insertError } = await supabase
-        .from('sites')
-        .insert({ name: siteName, address: siteAddress, lat, lng });
-      if (insertError) throw insertError;
-      setSiteName('');
-      setSiteAddress('');
-      fetchSites();
-    } catch (err) {
-      console.error('Geocode/create error:', err);
-      setError('Geocoding failed: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    const fetchAssignments = async () => {
+      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+      const { data, error } = await supabase.from('employee_sites').select('*');
+      if (error) console.error(error);
+      else {
+        const assigns = data.reduce((acc, { employee_id, site_id }) => {
+          if (!acc[employee_id]) acc[employee_id] = [];
+          acc[employee_id].push(site_id);
+          return acc;
+        }, {});
+        setAssignments(assigns);
+      }
+    };
+    fetchUsers();
+    fetchSites();
+    fetchAssignments();
+  }, []);
 
-  const handleDeleteSite = async (id) => {
-    if (!window.confirm('Delete this site?')) return;
-    try {
-      const { error } = await supabase.from('sites').delete().eq('id', id);
-      if (error) throw error;
-      fetchSites();
-    } catch (err) {
-      console.error('Delete site error:', err);
-      setError('Failed to delete site: ' + err.message);
-    }
-  };
-
-  const handleCreateUser = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const { error } = await supabase.auth.signUp({
-        email: userEmail,
-        password: userPassword,
-        options: { data: { is_admin: isAdmin } },
-      });
-      if (error) throw error;
-      setUserEmail('');
-      setUserPassword('');
+  const addUser = async () => {
+    const res = await fetch('/.netlify/functions/add-user', {
+      method: 'POST',
+      body: JSON.stringify({ email: newEmail, password: newPassword, isAdmin }),
+    });
+    if (res.ok) {
+      setUsers([...users, await res.json()]);
+      setNewEmail('');
+      setNewPassword('');
       setIsAdmin(false);
-      fetchUsers();
-    } catch (err) {
-      console.error('User create error:', err);
-      setError('User creation failed: ' + err.message);
-    } finally {
-      setLoading(false);
+    } else {
+      setError('Failed to add user');
     }
   };
 
-  const handleDeleteUser = async (id) => {
-    if (!window.confirm('Delete this user? This is permanent.')) return;
-    try {
-      const res = await fetch('/.netlify/functions/delete-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: id }),
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || 'Failed to delete user: ' + res.status);
-      }
-      fetchUsers();
-    } catch (err) {
-      console.error('Delete user error:', err);
-      setError('Failed to delete user: ' + err.message);
+  const deleteUser = async (userId) => {
+    const res = await fetch('/.netlify/functions/delete-user', {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+    if (res.ok) {
+      setUsers(users.filter(u => u.id !== userId));
+    } else {
+      setError(`Failed to delete user: ${await res.text()}`);
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  const addSite = async () => {
+    const res = await fetch('/.netlify/functions/add-site', {
+      method: 'POST',
+      body: JSON.stringify({ name: newSiteName }),
+    });
+    if (res.ok) {
+      setSites([...sites, await res.json()]);
+      setNewSiteName('');
+    } else {
+      setError('Failed to add site');
+    }
   };
+
+  const assignSites = async (userId, siteIds) => {
+    const res = await fetch('/.netlify/functions/assign-sites', {
+      method: 'POST',
+      body: JSON.stringify({ userId, siteIds }),
+    });
+    if (res.ok) {
+      setAssignments(prev => ({ ...prev, [userId]: siteIds }));
+      setTempAssigns(prev => ({ ...prev, [userId]: undefined })); // Clear temp
+    } else {
+      setError('Failed to assign sites');
+    }
+  };
+
+  const handleSiteChange = (userId, e) => {
+    const siteIds = Array.from(e.target.selectedOptions, o => o.value);
+    setTempAssigns(prev => ({ ...prev, [userId]: siteIds }));
+  };
+
+  const tileUrl = mapType === 'map' 
+    ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
   return (
-    <div className="container mx-auto p-6 bg-gray-100 min-h-screen">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
-        <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
-          Logout
-        </button>
-      </div>
-      {error && <p className="text-red-600 bg-red-100 p-4 rounded mb-6 border border-red-300">{error}</p>}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-700">Add Site</h2>
-          <form onSubmit={handleCreateSite} className="space-y-4">
-            <input
-              type="text"
-              placeholder="Site Name"
-              value={siteName}
-              onChange={(e) => setSiteName(e.target.value)}
-              className="border border-gray-300 p-3 w-full rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            <input
-              type="text"
-              placeholder="Site Address (e.g., 1600 Amphitheatre Parkway, Mountain View, CA)"
-              value={siteAddress}
-              onChange={(e) => setSiteAddress(e.target.value)}
-              className="border border-gray-300 p-3 w-full rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            <button 
-              type="submit" 
-              disabled={loading} 
-              className={`bg-blue-500 text-white p-3 w-full rounded hover:bg-blue-600 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+    <div>
+      <h1>Admin Dashboard</h1>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <h2>Add User</h2>
+      <input
+        type="email"
+        placeholder="User Email"
+        value={newEmail}
+        onChange={e => setNewEmail(e.target.value)}
+      />
+      <input
+        type="password"
+        placeholder="User Password"
+        value={newPassword}
+        onChange={e => setNewPassword(e.target.value)}
+      />
+      <label>
+        <input
+          type="checkbox"
+          checked={isAdmin}
+          onChange={e => setIsAdmin(e.target.checked)}
+        />
+        Admin?
+      </label>
+      <button onClick={addUser}>Add User</button>
+
+      <h2>Users</h2>
+      <ul>
+        {users.map(user => (
+          <li key={user.id}>
+            {user.email} - {user.user_metadata?.role || 'Employee'}
+            <select
+              multiple
+              value={tempAssigns[user.id] || assignments[user.id] || []}
+              onChange={e => handleSiteChange(user.id, e)}
             >
-              {loading ? 'Creating...' : 'Create Site'}
-            </button>
-          </form>
-          <h2 className="text-2xl font-semibold mt-8 mb-4 text-gray-700">Sites</h2>
-          <ul className="space-y-2">
-            {sites.map((site) => (
-              <li key={site.id} className="flex justify-between items-center bg-gray-50 p-3 rounded border border-gray-200">
-                <span>{site.name} - {site.address} ({site.lat}, {site.lng})</span>
-                <button 
-                  onClick={() => handleDeleteSite(site.id)} 
-                  className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition"
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-700">Sites Map</h2>
-          <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_KEY}>
-            <GoogleMap mapContainerStyle={mapContainerStyle} center={{ lat: 37.422, lng: -122.084 }} zoom={3}>
-              {sites.map((site) => site.lat && site.lng && (
-                <Marker key={site.id} position={{ lat: Number(site.lat), lng: Number(site.lng) }} title={site.name} />
+              {sites.map(site => (
+                <option key={site.id} value={site.id}>
+                  {site.name}
+                </option>
               ))}
-            </GoogleMap>
-          </LoadScript>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md lg:col-span-2">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-700">Add User</h2>
-          <form onSubmit={handleCreateUser} className="space-y-4">
-            <input
-              type="email"
-              placeholder="User Email"
-              value={userEmail}
-              onChange={(e) => setUserEmail(e.target.value)}
-              className="border border-gray-300 p-3 w-full rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
-            <input
-              type="password"
-              placeholder="User Password"
-              value={userPassword}
-              onChange={(e) => setUserPassword(e.target.value)}
-              className="border border-gray-300 p-3 w-full rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
-            <label className="flex items-center space-x-2">
-              <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} className="form-checkbox" />
-              <span>Admin?</span>
-            </label>
-            <button 
-              type="submit" 
-              disabled={loading} 
-              className={`bg-green-500 text-white p-3 w-full rounded hover:bg-green-600 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {loading ? 'Creating...' : 'Add User'}
+            </select>
+            <button onClick={() => assignSites(user.id, tempAssigns[user.id] || assignments[user.id] || [])}>
+              Save Sites
             </button>
-          </form>
-          <h2 className="text-2xl font-semibold mt-8 mb-4 text-gray-700">Users</h2>
-          {usersLoading && <p className="text-gray-600">Loading users...</p>}
-          {usersError && <p className="text-red-600">{usersError}</p>}
-          <ul className="space-y-2">
-            {users.map((user) => (
-              <li key={user.id} className="flex justify-between items-center bg-gray-50 p-3 rounded border border-gray-200">
-                <span>{user.email} - {user.user_metadata.is_admin ? 'Admin' : 'Employee'}</span>
-                <button 
-                  onClick={() => handleDeleteUser(user.id)} 
-                  className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition"
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+            <button onClick={() => deleteUser(user.id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
+
+      <h2>Add Site</h2>
+      <input
+        placeholder="Site Name"
+        value={newSiteName}
+        onChange={e => setNewSiteName(e.target.value)}
+      />
+      <button onClick={addSite}>Add Site</button>
+
+      <h2>Sites Map</h2>
+      <div>
+        <button onClick={() => setMapType('map')}>Map</button>
+        <button onClick={() => setMapType('satellite')}>Satellite</button>
       </div>
+      <MapContainer center={[45.0, -75.0]} zoom={4} style={{ height: '300px', width: '100%' }}>
+        <TileLayer url={tileUrl} />
+        {/* Add Markers for sites if lat/lng added later: sites.map(site => <Marker position={[site.lat, site.lng]}><Popup>{site.name}</Popup></Marker>) */}
+      </MapContainer>
+      <button onClick={() => {/* Logout logic */}}>Logout</button>
     </div>
   );
 };
