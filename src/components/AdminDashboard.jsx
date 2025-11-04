@@ -47,6 +47,7 @@ const AdminDashboard = ({ logout }) => {
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   const refreshAll = async () => {
+    setError(null); // Clear error on retry
     await Promise.all([
       fetchEmployees(),
       fetchSites(),
@@ -137,6 +138,7 @@ const AdminDashboard = ({ logout }) => {
       const { error } = await supabase.from('profiles').delete().eq('id', id);
       if (error) throw error;
       setSuccess('Employee deleted successfully');
+      setError(null);
       await refreshAll();
     } catch (err) {
       setError(err.message);
