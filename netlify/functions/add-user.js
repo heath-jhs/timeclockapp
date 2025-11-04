@@ -9,11 +9,13 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ message: 'Missing email or password' }) };
   }
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-    const { data, error } = await supabase.auth.signUp({
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+    const adminAuthClient = supabase.auth.admin;
+    const { data, error } = await adminAuthClient.createUser({
       email,
       password,
-      options: { data: { role: isAdmin ? 'Admin' : 'Employee' } },
+      email_confirm: true,
+      app_metadata: { role: isAdmin ? 'Admin' : 'Employee' },
     });
     if (error) throw error;
     return { statusCode: 200, body: JSON.stringify(data.user) };
