@@ -29,6 +29,8 @@ const MapBounds = ({ sites }) => {
 const AdminDashboard = ({ logout }) => {
   const [employees, setEmployees] = useState([]);
   const [sites, setSites] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [timeEntries, setTimeEntries] = useState([]);
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
   const [newEmployeeIsAdmin, setNewEmployeeIsAdmin] = useState(false);
   const [newSiteName, setNewSiteName] = useState('');
@@ -43,6 +45,8 @@ const AdminDashboard = ({ logout }) => {
   useEffect(() => {
     fetchEmployees();
     fetchSites();
+    fetchAssignments();
+    fetchTimeEntries();
   }, []);
 
   useEffect(() => {
@@ -67,6 +71,31 @@ const AdminDashboard = ({ logout }) => {
       const { data, error } = await supabase.from('sites').select('*');
       if (error) throw error;
       setSites(data);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const fetchAssignments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('employee_sites')
+        .select('*, employee:employee_id ( username ), site:site_id ( name )');
+      if (error) throw error;
+      setAssignments(data);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const fetchTimeEntries = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('time_entries')
+        .select('*, employee:employee_id ( username ), site:site_id ( name )')
+        .order('clock_in_time', { ascending: false });
+      if (error) throw error;
+      setTimeEntries(data);
     } catch (err) {
       setError(err.message);
     }
@@ -97,6 +126,8 @@ const AdminDashboard = ({ logout }) => {
       const { error } = await supabase.from('profiles').delete().eq('id', id);
       if (error) throw error;
       fetchEmployees();
+      fetchAssignments();
+      fetchTimeEntries();
     } catch (err) {
       setError(err.message);
     }
@@ -134,6 +165,7 @@ const AdminDashboard = ({ logout }) => {
       const inserts = selectedSites.map(siteId => ({ employee_id: selectedEmployee, site_id: siteId }));
       const { error } = await supabase.from('employee_sites').insert(inserts);
       if (error) throw error;
+      fetchAssignments();
       setSelectedEmployee('');
       setSelectedSites([]);
       setError(null);
@@ -141,6 +173,14 @@ const AdminDashboard = ({ logout }) => {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const calculateDuration = (entry) => {
+    if (!entry.clock_out_time) return 'Ongoing';
+    const inTime = new Date(entry.clock_in_time);
+    const outTime = new Date(entry.clock_out_time);
+    const diff = (outTime - inTime) / (1000 * 60 * 60); // hours
+    return diff.toFixed(2) + ' hours';
   };
 
   return (
@@ -192,6 +232,50 @@ const AdminDashboard = ({ logout }) => {
           </div>
           <button onClick={assignSites} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Assign Sites</button>
         </div>
+      </div>
+      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Employee Assignments</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
+            </tr>
+          </thead>
+          <tbody>
+            {assignments.map((assign, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '0.5rem' }}>{assign.employee.username}</td>
+                <td style={{ padding: '0.5rem' }}>{assign.site.name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Time Entries</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Clock In</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Clock Out</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            {timeEntries.map((entry, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '0.5rem' }}>{entry.employee.username}</td>
+                <td style={{ padding: '0.5rem' }}>{entry.site.name}</td>
+                <td style={{ padding: '0.5rem' }}>{new Date(entry.clock_in_time).toLocaleString()}</td>
+                <td style={{ padding: '0.5rem' }}>{entry.clock_out_time ? new Date(entry.clock_out_time).toLocaleString() : 'N/A'}</td>
+                <td style={{ padding: '0.5rem' }}>{calculateDuration(entry)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites Map</h2>
