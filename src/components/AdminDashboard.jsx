@@ -249,27 +249,6 @@ const AdminDashboard = ({ logout }) => {
           <button onClick={addEmployee} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Employee</button>
         </div>
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Employees</h2>
-          <ul style={{ listStyleType: 'none' }}>
-            {employees.map(emp => (
-              <li key={emp.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  {emp.username} ({emp.role || 'Employee'})
-                  <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
-                </div>
-                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
-                  <span style={{ marginRight: '0.5rem' }}>Daily Work Hours (for budgeting):</span>
-                  <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => updateDailyTimes(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
-                  <span style={{ marginRight: '0.5rem' }}>Placeholder Start (for punctuality):</span>
-                  <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_start', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
-                  <span style={{ marginRight: '0.5rem' }}>Placeholder End:</span>
-                  <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_end', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Site</h2>
           <div style={{ width: '100%' }}>
             <input type="text" placeholder="Site Name" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
@@ -306,6 +285,27 @@ const AdminDashboard = ({ logout }) => {
             <DatePicker selected={newAssignEnd} onChange={date => setNewAssignEnd(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="End Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" />
           </div>
           <button onClick={assignSites} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Assign Sites</button>
+        </div>
+        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', gridColumn: '1 / -1' }}>
+          <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Employees</h2>
+          <ul style={{ listStyleType: 'none' }}>
+            {employees.map(emp => (
+              <li key={emp.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {emp.username} ({emp.role || 'Employee'})
+                  <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                </div>
+                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ marginRight: '0.5rem' }}>Daily Work Hours (for budgeting):</span>
+                  <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => updateDailyTimes(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
+                  <span style={{ marginRight: '0.5rem' }}>Placeholder Start (for punctuality):</span>
+                  <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_start', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
+                  <span style={{ marginRight: '0.5rem' }}>Placeholder End (for punctuality):</span>
+                  <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_end', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
       <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
