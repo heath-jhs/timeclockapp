@@ -254,6 +254,7 @@ const AdminDashboard = ({ logout }) => {
             {employees.map(emp => (
               <li key={emp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
                 {emp.username} ({emp.role || 'Employee'})
+                <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_start', e.target.value + ':00')} style={{ marginLeft: '0.5rem', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} /> - <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_end', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
                 <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
               </li>
             ))}
