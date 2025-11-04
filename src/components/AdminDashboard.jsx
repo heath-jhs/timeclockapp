@@ -20,6 +20,7 @@ const AdminDashboard = ({ logout }) => {
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
   const [newEmployeeIsAdmin, setNewEmployeeIsAdmin] = useState(false);
   const [newSiteName, setNewSiteName] = useState('');
+  const [newSiteAddress, setNewSiteAddress] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedSites, setSelectedSites] = useState([]);
   const [error, setError] = useState(null);
@@ -78,16 +79,22 @@ const AdminDashboard = ({ logout }) => {
   };
 
   const addSite = async () => {
+    if (!newSiteName || !newSiteAddress) {
+      setError('Please provide both site name and address');
+      return;
+    }
     try {
       const response = await fetch('/.netlify/functions/geocode', {
         method: 'POST',
-        body: JSON.stringify({ address: newSiteName }),
+        body: JSON.stringify({ address: newSiteAddress }),
       });
+      if (!response.ok) throw new Error('Geocoding failed');
       const { lat, lon } = await response.json();
       const { error } = await supabase.from('sites').insert({ name: newSiteName, lat, lon });
       if (error) throw error;
       fetchSites();
       setNewSiteName('');
+      setNewSiteAddress('');
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -134,7 +141,8 @@ const AdminDashboard = ({ logout }) => {
         </div>
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Site</h2>
-          <input type="text" placeholder="Site Name/Address" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
+          <input type="text" placeholder="Site Name" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
+          <input type="text" placeholder="American Address (e.g., 123 Main St, City, State ZIP)" value={newSiteAddress} onChange={e => setNewSiteAddress(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
           <button onClick={addSite} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Site</button>
         </div>
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
@@ -157,7 +165,7 @@ const AdminDashboard = ({ logout }) => {
       </div>
       <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites Map</h2>
-        <MapContainer center={[0, 0]} zoom={2} style={{ height: '400px', width: '100%' }}>
+        <MapContainer center={[37.0902, -95.7129]} zoom={4} style={{ height: '400px', width: '100%' }}>  {/* Default to US center */}
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           {sites.map(site => site.lat && site.lon && (
             <Marker key={site.id} position={[site.lat, site.lon]}>
