@@ -13,7 +13,13 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2",
     "@supabase/supabase-js": "^2.45.4",
-    "@supabase/auth-helpers-react": "^0.5.0"
+    "@supabase/auth-helpers-react": "^0.5.0",
+    "react-leaflet": "^4.2.1",
+    "leaflet": "^1.9.4",
+    "react-datepicker": "^4.25.0",
+    "chart.js": "^4.4.4",
+    "react-chartjs-2": "^5.2.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
