@@ -248,7 +248,7 @@ const AdminDashboard = ({ logout }) => {
   };
 
   const getSiteAssignments = (siteId) => {
-    return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee.full_name || a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateDuration(a)})`).join('\n');
+    return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee?.full_name || a.employee?.username || 'Unknown'} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateDuration(a)})`).join('\n');
   };
 
   const sortSites = (sites, sortType) => {
@@ -294,7 +294,7 @@ const AdminDashboard = ({ logout }) => {
     const overlapEnd = new Date(Math.min(assignEnd, periodEnd));
     if (overlapStart > overlapEnd) return 0;
     const days = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24));
-    return days * (employee.work_hours || 8);
+    return days * (employee?.work_hours || 8);
   };
 
   const getEfficiencyData = (employeeId) => {
@@ -335,7 +335,7 @@ const AdminDashboard = ({ logout }) => {
       const logged = getWorkedHours(emp.id, site.id, reportStart, reportEnd);
       return { employee: emp.full_name || emp.username, budgeted, logged };
     }).filter(Boolean);
-    return { site: site.name, employees: siteEmployees };
+    return { site: site.name || 'Unknown', employees: siteEmployees };
   }).filter(group => group.employees.length > 0);
 
   const exportToExcel = (data, fileName, sheetName, headers) => {
