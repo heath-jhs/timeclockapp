@@ -1,7 +1,6 @@
-// src/EmployeeSplash.jsx
 import { useState, useEffect } from 'react';
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 export default function EmployeeSplash() {
   const supabase = useSupabaseClient();
@@ -102,160 +101,102 @@ export default function EmployeeSplash() {
     loadData();
   }, [supabase, navigate]);
 
-  // Handle clock in/out
   const handleClock = async (assignmentId, siteId, type) => {
-    if (!window.confirm(`Confirm CLOCK ${type.toUpperCase()} at this site?`)) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+      // Get current position for geofence check (implement as needed)
+      const position = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject)
+      );
+      const { latitude: lat, longitude: lon } = position.coords;
 
-    const { error } = await supabase
-      .from('clock_events')
-      .insert({
+      // Insert clock event
+      const { error } = await supabase.from('clock_events').insert({
         employee_id: user.id,
-        site_id: site_id,
-        assignment_id: assignmentId,
+        assignment_id,
+        site_id: siteId,
         event_type: type,
+        timestamp: new Date().toISOString(),
+        lat,
+        lon
       });
 
-    if (error) {
-      alert(`Error: ${error.message}`);
-      return;
+      if (error) throw error;
+
+      // Update local status
+      setClockStatus(prev => ({
+        ...prev,
+        [assignmentId]: { ...prev[assignmentId], [type]: new Date().toISOString() }
+      }));
+    } catch (err) {
+      alert(`Clock ${type} failed: ${err.message}`);
     }
-
-    const timestamp = new Date().toISOString();
-    setClockStatus(prev => ({
-      ...prev,
-      [assignmentId]: {
-        ...prev[assignmentId],
-        [type]: timestamp
-      }
-    }));
-
-    alert(`Clocked ${type.toUpperCase()} successfully!`);
   };
 
-  // Logout
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
   };
 
-  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading your assignments...</div>;
-  if (error) return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>;
+  if (loading) return <div className="p-4 text-center">Loading...</div>;
+  if (error) return <div className="p-4 text-center text-red-600">Error: {error}</div>;
 
   return (
-    <div style={{ padding: '20px', maxWidth: '700px', margin: 'auto', fontFamily: 'system-ui, sans-serif' }}>
-      <header style={{ marginBottom: '30px', textAlign: 'center' }}>
-        <h1 style={{ margin: 0, fontSize: '1.8rem', color: '#1f2937' }}>Your Work Day</h1>
-        <p style={{ color: '#6b7280', margin: '8px 0 0' }}>Welcome back! Here's your schedule.</p>
-      </header>
-
-      <nav style={{ marginBottom: '30px', display: 'flex', gap: '16px', justifyContent: 'center' }}>
-        <Link
-          to="/employee/settings"
-          style={{
-            color: '#2563eb',
-            textDecoration: 'none',
-            fontWeight: '500'
-          }}
-        >
-          Tracking Settings →
-        </Link>
-      </nav>
-
+    <div className="p-5 max-w-md mx-auto space-y-10">
       {/* Today's Assignments */}
-      <section style={{ marginBottom: '40px' }}>
-        <h2 style={{ fontSize: '1.4rem', color: '#111827', marginBottom: '16px' }}>
-          Today's Assignments ({new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })})
-        </h2>
-
+      <section>
+        <h2 className="text-xl font-semibold mb-3 text-gray-800">Today's Assignments</h2>
         {todayAssignments.length === 0 ? (
-          <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No assignments scheduled for today.</p>
+          <p className="text-gray-500">No assignments today</p>
         ) : (
           todayAssignments.map(ass => {
-            const status = clockStatus[ass.id] || {};
             const site = ass.sites;
+            const status = clockStatus[ass.id] || {};
 
             return (
               <div
                 key={ass.id}
-                style={{
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  marginBottom: '16px',
-                  backgroundColor: '#fafafa'
-                }}
+                className="bg-white rounded-lg shadow p-4 mb-4"
               >
-                <h3 style={{ margin: '0 0 8px', fontSize: '1.2rem', color: '#111827' }}>
-                  {site.name}
-                </h3>
-                <p style={{ margin: '4px 0', color: '#4b5563' }}>
-                  📍 {site.address}
+                <h3 className="text-lg font-medium mb-1">{site.name}</h3>
+                <p className="text-sm text-gray-600 mb-2">{site.address}</p>
+                <p className="text-sm mb-3">
+                  {ass.start_time} – {ass.end_time}
                 </p>
-                <p style={{ margin: '8px 0', fontWeight: '600', color: '#1f2937' }}>
-                  ⏰ {ass.start_time} – {ass.end_time}
-                </p>
-
-                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => window.open(
-                      `https://maps.google.com/maps?q=${encodeURIComponent(site.address)}`,
-                      '_blank'
-                    )}
-                    style={{
-                      background: '#10b981',
-                      color: 'white',
-                      padding: '8px 14px',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '0.9rem',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Get Directions
-                  </button>
-
-                  {!status.in ? (
+                <a
+                  href={`https://maps.google.com/?q=${site.lat},${site.lon}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 underline text-sm block mb-3"
+                >
+                  Get Directions
+                </a>
+                <div className="flex flex-wrap gap-2">
+                  {!status.in && (
                     <button
                       onClick={() => handleClock(ass.id, ass.site_id, 'in')}
-                      style={{
-                        background: '#3b82f6',
-                        color: 'white',
-                        padding: '8px 14px',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '0.9rem',
-                        cursor: 'pointer'
-                      }}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
                     >
                       Clock In
                     </button>
-                  ) : (
-                    <span style={{ color: '#059669', fontWeight: '500' }}>
+                  )}
+                  {status.in && (
+                    <span className="text-green-600 font-medium text-sm">
                       ✓ Clocked In: {new Date(status.in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   )}
-
                   {status.in && !status.out && (
                     <button
                       onClick={() => handleClock(ass.id, ass.site_id, 'out')}
-                      style={{
-                        background: '#ef4444',
-                        color: 'white',
-                        padding: '8px 14px',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '0.9rem',
-                        cursor: 'pointer'
-                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
                     >
                       Clock Out
                     </button>
                   )}
                   {status.out && (
-                    <span style={{ color: '#dc2626', fontWeight: '500' }}>
+                    <span className="text-red-600 font-medium text-sm">
                       ✓ Clocked Out: {new Date(status.out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   )}
@@ -268,10 +209,8 @@ export default function EmployeeSplash() {
 
       {/* Upcoming Assignments */}
       {upcomingAssignments.length > 0 && (
-        <section style={{ marginBottom: '40px' }}>
-          <h2 style={{ fontSize: '1.3rem', color: '#374151', marginBottom: '12px' }}>
-            Upcoming This Week
-          </h2>
+        <section>
+          <h2 className="text-xl font-semibold mb-3 text-gray-800">Upcoming This Week</h2>
           {upcomingAssignments.map(ass => {
             const site = ass.sites;
             const date = new Date(ass.start_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -279,18 +218,12 @@ export default function EmployeeSplash() {
             return (
               <div
                 key={ass.id}
-                style={{
-                  borderLeft: '4px solid #3b82f6',
-                  padding: '12px 16px',
-                  backgroundColor: '#eff6ff',
-                  borderRadius: '0 8px 8px 0',
-                  marginBottom: '8px'
-                }}
+                className="border-l-4 border-blue-500 pl-4 bg-blue-50 rounded-r-lg mb-2 p-3"
               >
-                <p style={{ margin: '0 0 4px', fontWeight: '600' }}>
+                <p className="font-medium mb-1">
                   {date} • {ass.start_time} – {ass.end_time}
                 </p>
-                <p style={{ margin: 0, color: '#1e40af' }}>
+                <p className="text-blue-800">
                   {site.name} – {site.address}
                 </p>
               </div>
@@ -300,20 +233,10 @@ export default function EmployeeSplash() {
       )}
 
       {/* Logout */}
-      <footer style={{ textAlign: 'center' }}>
+      <footer className="text-center">
         <button
           onClick={handleLogout}
-          style={{
-            width: '100%',
-            padding: '14px',
-            background: '#ef4444',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '1rem',
-            fontWeight: '600',
-            cursor: 'pointer'
-          }}
+          className="w-full py-3 bg-red-600 text-white rounded-md font-semibold hover:bg-red-700"
         >
           Log Out
         </button>
