@@ -394,7 +394,7 @@ const AdminDashboard = ({ logout }) => {
             <input type="email" placeholder="Email" value={newEmployeeEmail} onChange={e => setNewEmployeeEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
           </div>
           <label style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-            <input type="checkbox" checked={newEmployeeIsAdmin} onChange={e => setNewEmployeeIsAdmin(e.target.value)} style={{ marginRight: '0.5rem' }} /> Admin
+            <input type="checkbox" checked={newEmployeeIsAdmin} onChange={e => setNewEmployeeIsAdmin(e.target.checked)} style={{ marginRight: '0.5rem' }} /> Admin
           </label>
           <button onClick={addEmployee} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Employee</button>
         </div>
@@ -433,7 +433,11 @@ const AdminDashboard = ({ logout }) => {
             <DatePicker selected={newAssignStart} onChange={date => setNewAssignStart(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="Start Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" popperClassName="z-50" />
           </div>
           <div style={{ width: '100%', marginBottom: '1rem' }}>
-            <DatePicker selected={newAssignEnd} onChange={date => setNewAssignEnd(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="End Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" popperClassName="z-50" />
+            <DatePicker selected={newAssignEnd} onChange={date => {
+              const endOfDay = new Date(date);
+              endOfDay.setHours(23, 59, 59, 999);
+              setNewAssignEnd(endOfDay);
+            }} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="End Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" popperClassName="z-50" />
           </div>
           <button onClick={assignSites} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Assign Sites</button>
         </div>
@@ -513,30 +517,36 @@ const AdminDashboard = ({ logout }) => {
       </div>
       <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites Map</h2>
-        <div style={{ position: 'relative', zIndex: 0, height: '400px' }}>
-          <MapContainer center={[37.0902, -95.7129]} zoom={4} style={{ height: '100%', width: '100%' }}>
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <MapBounds sites={sites} />
-            {sites.map(site => site.lat && site.lon && (
-              <Marker key={site.id} position={[site.lat, site.lon]}>
-                <Popup>
-                  {site.name} - {site.address}<br />
-                  Assigned Employees:<br />
-                  {getSiteAssignments(site.id) || 'None'}
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
-        </div>
+        <MapContainer center={[37.0902, -95.7129]} zoom={4} style={{ height: '400px', width: '100%' }}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <MapBounds sites={sites} />
+          {sites.map(site => site.lat && site.lon && (
+            <Marker key={site.id} position={[site.lat, site.lon]}>
+              <Popup>
+                {site.name} - {site.address}<br />
+                Assigned Employees:<br />
+                {getSiteAssignments(site.id) || 'None'}
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
       </div>
       <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Reports</h2>
         <div style={{ display: 'flex', marginBottom: '1rem' }}>
           <div style={{ marginRight: '1rem' }}>
-            <DatePicker selected={reportStart} onChange={date => setReportStart(date)} dateFormat="MMMM d, yyyy" placeholderText="Start Date" className="p-2 border border-gray-300 rounded-md" popperClassName="z-50" />
+            <DatePicker selected={reportStart} onChange={date => {
+              const startOfDay = new Date(date);
+              startOfDay.setHours(0, 0, 0, 0);
+              setReportStart(startOfDay);
+            }} dateFormat="MMMM d, yyyy" placeholderText="Start Date" className="p-2 border border-gray-300 rounded-md" popperClassName="z-50" />
           </div>
           <div>
-            <DatePicker selected={reportEnd} onChange={date => setReportEnd(date)} dateFormat="MMMM d, yyyy" placeholderText="End Date" className="p-2 border border-gray-300 rounded-md" popperClassName="z-50" />
+            <DatePicker selected={reportEnd} onChange={date => {
+              const endOfDay = new Date(date);
+              endOfDay.setHours(23, 59, 59, 999);
+              setReportEnd(endOfDay);
+            }} dateFormat="MMMM d, yyyy" placeholderText="End Date" className="p-2 border border-gray-300 rounded-md" popperClassName="z-50" />
           </div>
         </div>
         {(!reportStart || !reportEnd) && <p style={{ color: '#9b2c2c', marginBottom: '1rem' }}>Please select a date range to view reports.</p>}
