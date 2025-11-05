@@ -1,8 +1,51 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { SupabaseProvider } from '@supabase/auth-helpers-react';
-import { supabase } from './supabaseClient';   // <-- your client export
+import { createBrowserSupabaseClient } from '@supabase/auth-helpers-react';
+import { SessionContextProvider } from '@supabase/auth-helpers-react';
 
+// ---------------------------------------------------------------------
+// Supabase client – reads from VITE_ env vars (works on GitHub Pages, Vercel, etc.)
+// ---------------------------------------------------------------------
+const supabase = createBrowserSupabaseClient({
+  supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+  supabaseKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+});
+
+export { supabase };
+
+// ---------------------------------------------------------------------
+// Auth helpers
+// ---------------------------------------------------------------------
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { session, isLoading } = supabase.auth.useSession();
+
+  if (isLoading) return <div style={{ padding: 20, textAlign: 'center' }}>Loading…</div>;
+  return session ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+function RequireRole({ role, children }: { role: 'admin' | 'employee'; children: React.ReactNode }) {
+  const { session, isLoading } = supabase.auth.useSession();
+
+  if (isLoading) return <div style={{ padding: 20, textAlign: 'center' }}>Loading…</div>;
+  if (!session) return <Navigate to="/login" replace />;
+
+  // Role is stored in profiles.role (fallback to user_metadata if you set it on signup)
+  const userRole =
+    session.user?.user_metadata?.role ??
+    session.user?.app_metadata?.role ??
+    null;
+
+  if (userRole !== role) {
+    const redirectTo = userRole === 'admin' ? '/admin' : '/employee';
+    return <Navigate to={redirectTo} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+// ---------------------------------------------------------------------
+// Page imports – create empty stubs if they don’t exist yet
+// ---------------------------------------------------------------------
 import Login from './pages/Login';
 import InviteSetup from './pages/InviteSetup';
 import EmployeeSplash from './pages/EmployeeSplash';
@@ -14,51 +57,19 @@ import AdminEmployees from './pages/admin/AdminEmployees';
 import AdminReports from './pages/admin/AdminReports';
 
 // ---------------------------------------------------------------------
-// Helper: redirect if NOT logged in
-// ---------------------------------------------------------------------
-function RequireAuth({ children }) {
-  const { data: { session }, isLoading } = supabase.auth.useSession();
-
-  if (isLoading) return <div style={{ padding: 20 }}>Loading…</div>;
-  return session ? children : <Navigate to="/login" replace />;
-}
-
-// ---------------------------------------------------------------------
-// Helper: redirect if user does NOT have required role
-// ---------------------------------------------------------------------
-function RequireRole({ role, children }) {
-  const { data: { session }, isLoading } = supabase.auth.useSession();
-
-  if (isLoading) return <div style={{ padding: 20 }}>Loading…</div>;
-
-  if (!session) return <Navigate to="/login" replace />;
-
-  // Role is stored in profiles.role (employee | admin)
-  const userRole = session.user?.user_metadata?.role
-    ?? session.user?.app_metadata?.role
-    ?? null;
-
-  if (userRole !== role) {
-    return <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} replace />;
-  }
-
-  return children;
-}
-
-// ---------------------------------------------------------------------
 // Main App
 // ---------------------------------------------------------------------
 export default function App() {
   return (
-    <SupabaseProvider client={supabase}>
+    <SessionContextProvider supabaseClient={supabase}>
       <BrowserRouter>
         <Routes>
 
-          {/* ------------------ Public ------------------ */}
+          {/* ---------- Public ---------- */}
           <Route path="/login" element={<Login />} />
           <Route path="/invite" element={<InviteSetup />} />
 
-          {/* ------------------ Employee ------------------ */}
+          {/* ---------- Employee ---------- */}
           <Route
             path="/employee"
             element={
@@ -80,7 +91,7 @@ export default function App() {
             }
           />
 
-          {/* ------------------ Admin ------------------ */}
+          {/* ---------- Admin ---------- */}
           <Route
             path="/admin"
             element={
@@ -122,10 +133,10 @@ export default function App() {
             }
           />
 
-          {/* ------------------ Catch-all ------------------ */}
+          {/* ---------- Catch-all ---------- */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
-    </SupabaseProvider>
+    </SessionContextProvider>
   );
 }
