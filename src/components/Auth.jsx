@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthProvider';
 import { useNavigate } from 'react-router-dom';
@@ -13,19 +13,35 @@ const Auth = () => {
   const navigate = useNavigate();
 
   // Redirect if already logged in
-  if (user) navigate('/dashboard');
+  useEffect(() => {
+    if (user) {
+      checkAndRedirect(user.id);
+    }
+  }, [user]);
+
+  const checkAndRedirect = async (userId) => {
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
+    if (profile.role === 'Admin') {
+      navigate('/admin-dashboard'); // Or your admin path
+    } else {
+      navigate('/employee-dashboard'); // Or your employee path
+    }
+  };
 
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      let { error } = isSignUp
+      let { data, error } = isSignUp
         ? await supabase.auth.signUp({ email, password })
         : await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      if (isSignUp) alert('Check your email for confirmation!');
-      if (!isSignUp) navigate('/dashboard');
+      if (isSignUp) {
+        alert('Check your email for confirmation!');
+      } else {
+        await checkAndRedirect(data.user.id);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -67,5 +83,3 @@ const Auth = () => {
     </div>
   );
 };
-
-export default Auth;
