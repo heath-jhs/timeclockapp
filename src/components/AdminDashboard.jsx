@@ -34,6 +34,7 @@ const AdminDashboard = ({ logout }) => {
   const [assignments, setAssignments] = useState([]);
   const [timeEntries, setTimeEntries] = useState([]);
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
+  const [newEmployeeName, setNewEmployeeName] = useState('');
   const [newEmployeeIsAdmin, setNewEmployeeIsAdmin] = useState(false);
   const [newSiteName, setNewSiteName] = useState('');
   const [newSiteAddress, setNewSiteAddress] = useState('');
@@ -92,7 +93,7 @@ const AdminDashboard = ({ logout }) => {
     try {
       const { data, error } = await supabase
         .from('employee_sites')
-        .select('*, employee:employee_id ( username ), site:site_id ( name )')
+        .select('*, employee:employee_id ( username, full_name ), site:site_id ( name )')
         .order('start_date', { ascending: false });
       if (error) throw error;
       setAssignments(data);
@@ -105,7 +106,7 @@ const AdminDashboard = ({ logout }) => {
     try {
       const { data, error } = await supabase
         .from('time_entries')
-        .select('*, employee:employee_id ( username ), site:site_id ( name )')
+        .select('*, employee:employee_id ( username, full_name ), site:site_id ( name )')
         .order('clock_in_time', { ascending: false });
       if (error) throw error;
       setTimeEntries(data);
@@ -114,7 +115,7 @@ const AdminDashboard = ({ logout }) => {
     }
   };
 
-  const updateDailyTimes = async (id, field, value) => {
+  const updateProfile = async (id, field, value) => {
     try {
       const { error } = await supabase.from('profiles').update({ [field]: value }).eq('id', id);
       if (error) throw error;
@@ -128,13 +129,14 @@ const AdminDashboard = ({ logout }) => {
     try {
       const response = await fetch('/.netlify/functions/add-user', {
         method: 'POST',
-        body: JSON.stringify({ email: newEmployeeEmail, isAdmin: newEmployeeIsAdmin }),
+        body: JSON.stringify({ email: newEmployeeEmail, name: newEmployeeName, isAdmin: newEmployeeIsAdmin }),
       });
       if (!response.ok) {
         const { message } = await response.json();
         throw new Error(message || 'Failed to add user');
       }
       setNewEmployeeEmail('');
+      setNewEmployeeName('');
       setNewEmployeeIsAdmin(false);
       setError(null);
       setSuccess('Employee added successfully');
@@ -215,7 +217,7 @@ const AdminDashboard = ({ logout }) => {
   };
 
   const getSiteAssignments = (siteId) => {
-    return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateDuration(a)})`).join('\n');
+    return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee.full_name || a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateDuration(a)})`).join('\n');
   };
 
   const sortSites = (sites, sortType) => {
@@ -241,6 +243,9 @@ const AdminDashboard = ({ logout }) => {
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Employee</h2>
           <div style={{ width: '100%' }}>
+            <input type="text" placeholder="Full Name" value={newEmployeeName} onChange={e => setNewEmployeeName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ width: '100%' }}>
             <input type="email" placeholder="Email" value={newEmployeeEmail} onChange={e => setNewEmployeeEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
           </div>
           <label style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
@@ -262,7 +267,7 @@ const AdminDashboard = ({ logout }) => {
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Assign Sites to Employee</h2>
           <select value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }}>
             <option value="">Select Employee</option>
-            {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.username}</option>)}
+            {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.full_name || emp.username}</option>)}
           </select>
           <select value={siteSort} onChange={e => setSiteSort(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }}>
             <option>Recent</option>
@@ -292,16 +297,18 @@ const AdminDashboard = ({ logout }) => {
             {employees.map(emp => (
               <li key={emp.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  {emp.username} ({emp.role || 'Employee'})
+                  {emp.full_name ? `${emp.full_name} (${emp.username})` : emp.username} ({emp.role || 'Employee'})
                   <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
                 </div>
                 <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
-                  <span style={{ marginRight: '0.5rem' }}>Daily Work Hours (for budgeting):</span>
-                  <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => updateDailyTimes(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
-                  <span style={{ marginRight: '0.5rem' }}>Placeholder Start (for punctuality):</span>
-                  <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_start', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
-                  <span style={{ marginRight: '0.5rem' }}>Placeholder End (for punctuality):</span>
-                  <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => updateDailyTimes(emp.id, 'daily_end', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
+                  <span style={{ marginRight: '0.5rem' }}>Name:</span>
+                  <input type="text" defaultValue={emp.full_name || ''} onBlur={e => updateProfile(emp.id, 'full_name', e.target.value)} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem', flex: '1' }} />
+                  <span style={{ marginRight: '0.5rem' }}>Daily Work Hours:</span>
+                  <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => updateProfile(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
+                  <span style={{ marginRight: '0.5rem' }}>Start:</span>
+                  <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => updateProfile(emp.id, 'daily_start', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
+                  <span style={{ marginRight: '0.5rem' }}>End:</span>
+                  <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => updateProfile(emp.id, 'daily_end', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
                 </div>
               </li>
             ))}
@@ -323,7 +330,7 @@ const AdminDashboard = ({ logout }) => {
           <tbody>
             {assignments.map((assign, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '0.5rem' }}>{assign.employee?.username || 'Unknown'}</td>
+                <td style={{ padding: '0.5rem' }}>{assign.employee?.full_name || assign.employee?.username || 'Unknown'}</td>
                 <td style={{ padding: '0.5rem' }}>{assign.site?.name || 'Unknown'}</td>
                 <td style={{ padding: '0.5rem' }}>{assign.start_date ? new Date(assign.start_date).toLocaleString() : 'N/A'}</td>
                 <td style={{ padding: '0.5rem' }}>{assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A'}</td>
@@ -348,7 +355,7 @@ const AdminDashboard = ({ logout }) => {
           <tbody>
             {timeEntries.map((entry, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '0.5rem' }}>{entry.employee?.username || 'Unknown'}</td>
+                <td style={{ padding: '0.5rem' }}>{entry.employee?.full_name || entry.employee?.username || 'Unknown'}</td>
                 <td style={{ padding: '0.5rem' }}>{entry.site?.name || 'Unknown'}</td>
                 <td style={{ padding: '0.5rem' }}>{new Date(entry.clock_in_time).toLocaleString()}</td>
                 <td style={{ padding: '0.5rem' }}>{entry.clock_out_time ? new Date(entry.clock_out_time).toLocaleString() : 'N/A'}</td>
