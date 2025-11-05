@@ -4,7 +4,7 @@ import { createBrowserSupabaseClient } from '@supabase/auth-helpers-react';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
 
 // ---------------------------------------------------------------------
-// Supabase client – reads from VITE_ env vars (works on GitHub Pages, Vercel, etc.)
+// Supabase client – reads from VITE_ env vars (works on Netlify, Vercel, etc.)
 // ---------------------------------------------------------------------
 const supabase = createBrowserSupabaseClient({
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
@@ -14,22 +14,28 @@ const supabase = createBrowserSupabaseClient({
 export { supabase };
 
 // ---------------------------------------------------------------------
-// Auth helpers
+// Auth helpers (plain JS – no TypeScript)
 // ---------------------------------------------------------------------
-function RequireAuth({ children }: { children: React.ReactNode }) {
+function RequireAuth({ children }) {
   const { session, isLoading } = supabase.auth.useSession();
 
-  if (isLoading) return <div style={{ padding: 20, textAlign: 'center' }}>Loading…</div>;
-  return session ? <>{children}</> : <Navigate to="/login" replace />;
+  if (isLoading) {
+    return <div style={{ padding: 20, textAlign: 'center' }}>Loading…</div>;
+  }
+  return session ? children : <Navigate to="/login" replace />;
 }
 
-function RequireRole({ role, children }: { role: 'admin' | 'employee'; children: React.ReactNode }) {
+function RequireRole({ role, children }) {
   const { session, isLoading } = supabase.auth.useSession();
 
-  if (isLoading) return <div style={{ padding: 20, textAlign: 'center' }}>Loading…</div>;
-  if (!session) return <Navigate to="/login" replace />;
+  if (isLoading) {
+    return <div style={{ padding: 20, textAlign: 'center' }}>Loading…</div>;
+  }
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
 
-  // Role is stored in profiles.role (fallback to user_metadata if you set it on signup)
+  // Role comes from profiles.role (or user_metadata if you set it on signup)
   const userRole =
     session.user?.user_metadata?.role ??
     session.user?.app_metadata?.role ??
@@ -40,7 +46,7 @@ function RequireRole({ role, children }: { role: 'admin' | 'employee'; children:
     return <Navigate to={redirectTo} replace />;
   }
 
-  return <>{children}</>;
+  return children;
 }
 
 // ---------------------------------------------------------------------
