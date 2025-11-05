@@ -1,5 +1,4 @@
 const { createClient } = require('@supabase/supabase-js');
-
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
