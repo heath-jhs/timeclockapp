@@ -20,6 +20,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import * as XLSX from 'xlsx';
 
 ChartJS.register(
   CategoryScale,
