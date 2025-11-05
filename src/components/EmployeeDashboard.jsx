@@ -7,7 +7,10 @@ const EmployeeDashboard = ({ logout }) => {
   const [currentEntry, setCurrentEntry] = useState(null);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
-
+  const [profile, setProfile] = useState(null);
+  const [allowTracking, setAllowTracking] = useState(true);
+  const [trackingStart, setTrackingStart] = useState('09:00');
+  const [trackingEnd, setTrackingEnd] = useState('17:00');
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   useEffect(() => {
@@ -17,13 +20,20 @@ const EmployeeDashboard = ({ logout }) => {
         if (userError) throw userError;
         setUserId(user.id);
 
+        // Fetch profile with tracking prefs
+        const { data: prof, error: profError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        if (profError) throw profError;
+        setProfile(prof);
+        setAllowTracking(prof.allow_tracking);
+        setTrackingStart(prof.tracking_start || '09:00');
+        setTrackingEnd(prof.tracking_end || '17:00');
+
         // Fetch assigned sites
         const { data: assignments, error: assignError } = await supabase
           .from('employee_sites')
           .select('site_id')
           .eq('employee_id', user.id);
         if (assignError) throw assignError;
-
         const siteIds = assignments.map(a => a.site_id);
         const { data: sites, error: sitesError } = await supabase
           .from('sites')
@@ -72,20 +82,40 @@ const EmployeeDashboard = ({ logout }) => {
       return;
     }
     try {
-      const position = await getLocation();
-      const { latitude, longitude } = position.coords;
-      const site = assignedSites.find(s => s.id === selectedSite);
-      const dist = haversineDistance(latitude, longitude, site.lat, site.lon);
-      if (dist > 100) throw new Error('Too far from site - must be within 100m');
-      const { error } = await supabase.from('time_entries').insert({
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), ...trackingStart.split(':').map(Number));
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), ...trackingEnd.split(':').map(Number));
+      const useGeo = allowTracking && now >= todayStart && now <= todayEnd;
+
+      let latitude = null;
+      let longitude = null;
+      let locationNote = 'Manual - Tracking Disabled or Outside Hours';
+
+      if (useGeo) {
+        try {
+          const position = await getLocation();
+          latitude = position.coords.latitude;
+          longitude = position.coords.longitude;
+          const site = assignedSites.find(s => s.id === selectedSite);
+          const dist = haversineDistance(latitude, longitude, site.lat, site.lon);
+          if (dist > 100) throw new Error('Too far from site - must be within 100m');
+          locationNote = null; // Geo successful, no note
+        } catch (geoErr) {
+          // Fallback to manual on geo fail/denied
+          locationNote = 'Manual - Location Access Denied or Failed';
+        }
+      }
+
+      const { data: newEntry, error } = await supabase.from('time_entries').insert({
         employee_id: userId,
         site_id: selectedSite,
         clock_in_time: new Date().toISOString(),
         clock_in_lat: latitude,
         clock_in_lon: longitude,
-      });
+        location_note: locationNote,
+      }).select().single();
       if (error) throw error;
-      setCurrentEntry({ site_id: selectedSite, clock_in_time: new Date().toISOString() });
+      setCurrentEntry({ ...newEntry, site_id: selectedSite, clock_in_time: new Date().toISOString() });
       setSelectedSite('');
       setError(null);
     } catch (err) {
@@ -95,20 +125,60 @@ const EmployeeDashboard = ({ logout }) => {
 
   const clockOut = async () => {
     try {
-      const position = await getLocation();
-      const { latitude, longitude } = position.coords;
-      const site = assignedSites.find(s => s.id === currentEntry.site_id);
-      const dist = haversineDistance(latitude, longitude, site.lat, site.lon);
-      if (dist > 100) throw new Error('Too far from site - must be within 100m');
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), ...trackingStart.split(':').map(Number));
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), ...trackingEnd.split(':').map(Number));
+      const useGeo = allowTracking && now >= todayStart && now <= todayEnd;
+
+      let latitude = null;
+      let longitude = null;
+      let locationNote = 'Manual - Tracking Disabled or Outside Hours';
+
+      if (useGeo) {
+        try {
+          const position = await getLocation();
+          latitude = position.coords.latitude;
+          longitude = position.coords.longitude;
+          const site = assignedSites.find(s => s.id === currentEntry.site_id);
+          const dist = haversineDistance(latitude, longitude, site.lat, site.lon);
+          if (dist > 100) throw new Error('Too far from site - must be within 100m');
+          locationNote = null;
+        } catch (geoErr) {
+          locationNote = 'Manual - Location Access Denied or Failed';
+        }
+      }
+
       const { error } = await supabase
         .from('time_entries')
-        .update({ clock_out_time: new Date().toISOString(), clock_out_lat: latitude, clock_out_lon: longitude })
+        .update({
+          clock_out_time: new Date().toISOString(),
+          clock_out_lat: latitude,
+          clock_out_lon: longitude,
+          location_note: locationNote ? (currentEntry.location_note ? currentEntry.location_note + '; ' + locationNote : locationNote) : null,
+        })
         .eq('id', currentEntry.id);
       if (error) throw error;
       setCurrentEntry(null);
       setError(null);
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const saveTrackingPrefs = async () => {
+    try {
+      const { error } = await supabase.from('profiles').update({
+        allow_tracking: allowTracking,
+        tracking_start: trackingStart,
+        tracking_end: trackingEnd,
+      }).eq('id', userId);
+      if (error) throw error;
+      setError(null);
+      // Refresh profile
+      const { data: updatedProf } = await supabase.from('profiles').select('*').eq('id', userId).single();
+      setProfile(updatedProf);
+    } catch (err) {
+      setError('Failed to save settings: ' + err.message);
     }
   };
 
@@ -132,6 +202,18 @@ const EmployeeDashboard = ({ logout }) => {
             <button onClick={clockIn} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Clock In</button>
           </div>
         )}
+      </div>
+      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Tracking Settings</h2>
+        <label style={{ display: 'block', marginBottom: '1rem' }}>
+          <input type="checkbox" checked={allowTracking} onChange={e => setAllowTracking(e.target.checked)} />
+          Allow Location Tracking
+        </label>
+        <label style={{ display: 'block', marginBottom: '0.5rem' }}>Tracking Start Time:</label>
+        <input type="time" value={trackingStart} onChange={e => setTrackingStart(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
+        <label style={{ display: 'block', marginBottom: '0.5rem' }}>Tracking End Time:</label>
+        <input type="time" value={trackingEnd} onChange={e => setTrackingEnd(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
+        <button onClick={saveTrackingPrefs} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Save Settings</button>
       </div>
       <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
     </div>
