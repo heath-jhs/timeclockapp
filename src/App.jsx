@@ -1,9 +1,9 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { createBrowserSupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { SessionContextProvider, useSession } from '@supabase/auth-helpers-react';
 
-const supabase = createBrowserSupabaseClient(
+const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
@@ -27,12 +27,12 @@ function RequireRole({ role, children }) {
   return children;
 }
 
-// YOUR REAL FILES
-import Login from './components/auth/Login';
+// YOUR FILES
+import Login from './pages/Login';
 import InviteSetup from './pages/InviteSetup';
 import EmployeeSplash from './pages/EmployeeSplash';
 import EmployeeSettings from './pages/EmployeeSettings';
-import AdminDashboard from './components/AdminDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import AssignSites from './components/AssignSites';
 import ClockIn from './components/ClockIn';
 
@@ -41,27 +41,15 @@ export default function App() {
     <SessionContextProvider supabaseClient={supabase}>
       <BrowserRouter>
         <Routes>
-          {/* Public */}
           <Route path="/login" element={<Login />} />
           <Route path="/invite" element={<InviteSetup />} />
 
-          {/* Employee */}
           <Route
             path="/employee"
             element={
               <RequireAuth>
                 <RequireRole role="employee">
                   <EmployeeSplash />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/employee/clockin"
-            element={
-              <RequireAuth>
-                <RequireRole role="employee">
-                  <ClockIn />
                 </RequireRole>
               </RequireAuth>
             }
@@ -76,8 +64,17 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route
+            path="/employee/clockin"
+            element={
+              <RequireAuth>
+                <RequireRole role="employee">
+                  <ClockIn />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
 
-          {/* Admin */}
           <Route
             path="/admin"
             element={
@@ -99,7 +96,6 @@ export default function App() {
             }
           />
 
-          {/* Catch-all */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
