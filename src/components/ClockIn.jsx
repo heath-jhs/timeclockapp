@@ -1,3 +1,4 @@
+// src/components/ClockIn.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
@@ -7,7 +8,7 @@ export default function ClockIn({ user }) {
   const [status, setStatus] = useState('Locating...');
   const [streak, setStreak] = useState(0);
 
-  // ---------- LOAD SITES ----------
+  // Load sites with radius
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase
@@ -19,17 +20,16 @@ export default function ClockIn({ user }) {
     load();
   }, [user.id]);
 
-  // ---------- GPS + AUTO CLOCK ----------
+  // GPS + AUTO CLOCK
   useEffect(() => {
     const watch = navigator.geolocation.watchPosition(
       async pos => {
         const cur = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setPosition(cur);
-
         let inside = false;
         for (const s of sites) {
-          const dist = haversine(cur, { lat: s.sites.latitude, lng: s.sites.longitude });
-          if (dist <= s.sites.radius_meters) {
+          const dist = haversine(cur, { lat: s.sites.lat, lng: s.sites.lon });
+          if (dist <= (s.sites.radius_meters || 100)) {  // Default 100m if no radius
             setStatus(`At ${s.sites.name}`);
             await ensureClockIn(s.site_id, cur);
             inside = true;
@@ -46,36 +46,36 @@ export default function ClockIn({ user }) {
 
   const ensureClockIn = async (siteId, pos) => {
     const { data: open } = await supabase
-      .from('clock_ins')
+      .from('clock_events')  // Use your table
       .select('id')
-      .eq('user_id', user.id)
-      .is('time_out', null)
+      .eq('employee_id', user.id)
+      .is('timestamp_out', null)  // Assume time_out field
       .single();
-
     if (!open) {
-      await supabase.from('clock_ins').insert({
-        user_id: user.id,
+      await supabase.from('clock_events').insert({
+        employee_id: user.id,
         site_id: siteId,
-        time_in: new Date().toISOString(),
+        event_type: 'in',
+        timestamp: new Date().toISOString(),
         lat: pos.lat,
         lng: pos.lng
       });
     }
   };
 
-  // ---------- STREAK ----------
+  // STREAK
   useEffect(() => {
     const calcStreak = async () => {
       const { data } = await supabase
-        .from('clock_ins')
-        .select('time_in')
-        .eq('user_id', user.id)
-        .order('time_in', { ascending: false })
+        .from('clock_events')
+        .select('timestamp')
+        .eq('employee_id', user.id)
+        .eq('event_type', 'in')
+        .order('timestamp', { ascending: false })
         .limit(30);
-
-      const days = new Set(data.map(r => new Date(r.time_in).toDateString()));
+      const days = new Set(data.map(r => new Date(r.timestamp).toDateString()));
       let count = 0;
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i = 7; i++) {
         const d = new Date();
         d.setDate(d.getDate() - i);
         if (days.has(d.toDateString())) count++;
@@ -98,7 +98,7 @@ export default function ClockIn({ user }) {
   };
 
   const openMaps = (site) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${site.latitude},${site.longitude}`;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${site.lat},${site.lon}`;
     window.open(url, '_blank');
   };
 
@@ -114,7 +114,6 @@ export default function ClockIn({ user }) {
       <div className="text-3xl font-bold text-green-600 mt-6">
         🔥 {streak} Day Streak
       </div>
-
       {sites.length > 0 && (
         <div className="mt-6">
           <h2 className="font-semibold mb-2">Your Sites</h2>
