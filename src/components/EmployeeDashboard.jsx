@@ -6,8 +6,6 @@ import L from 'leaflet';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
 import jshLogo from '../assets/jsh-logo.png'; // From assets
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -50,23 +48,22 @@ const EmployeeDashboard = ({ logout }) => {
           .in('id', siteIds);
         setAssignedSites(sites);
 
+        // Schedule (from employee_sites with dates)
+        const { data: sched } = await supabase
+          .from('employee_sites')
+          .select('*, site:site_id (name)')
+          .eq('employee_id', user.id)
+          .order('start_date');
+        setSchedule(sched);
+
         // History
         const { data: hist } = await supabase
           .from('time_entries')
-          .select('*')
+          .select('*, site:site_id (name)')
           .eq('employee_id', user.id)
           .order('clock_in_time', { ascending: false })
           .limit(20);
         setHistory(hist);
-
-        // Schedule (assume schedules table with employee_id, date, start/end)
-        const { data: sched } = await supabase
-          .from('schedules')
-          .select('*')
-          .eq('employee_id', user.id)
-          .order('date');
-
-        setSchedule(sched);
 
         // Current entry
         const { data: entry } = await supabase
@@ -112,15 +109,15 @@ const EmployeeDashboard = ({ logout }) => {
       const site = assignedSites.find(s => s.id === selectedSite);
       const dist = haversineDistance(latitude, longitude, site.lat, site.lon);
       if (dist > 100) throw new Error('Too far from site - must be within 100m');
-      const { error } = await supabase.from('time_entries').insert({
+      const { data, error } = await supabase.from('time_entries').insert({
         employee_id: userId,
         site_id: selectedSite,
         clock_in_time: new Date().toISOString(),
         clock_in_lat: latitude,
         clock_in_lon: longitude,
-      });
+      }).select();
       if (error) throw error;
-      setCurrentEntry({ site_id: selectedSite, clock_in_time: new Date().toISOString() });
+      setCurrentEntry(data[0]);
       setSelectedSite('');
       setError(null);
     } catch (err) {
@@ -189,7 +186,9 @@ const EmployeeDashboard = ({ logout }) => {
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Schedule</h2>
         <ul>
           {schedule.map(s => (
-            <li key={s.id}>{new Date(s.date).toLocaleDateString()}: {s.start_time} - {s.end_time}</li>
+            <li key={s.id}>
+              {s.site.name}: {s.start_date ? new Date(s.start_date).toLocaleDateString() : 'N/A'} - {s.end_date ? new Date(s.end_date).toLocaleDateString() : 'N/A'}
+            </li>
           ))}
         </ul>
       </div>
@@ -198,7 +197,7 @@ const EmployeeDashboard = ({ logout }) => {
         <ul>
           {history.map(entry => (
             <li key={entry.id}>
-              Site: {assignedSites.find(s => s.id === entry.site_id)?.name}<br />
+              Site: {entry.site.name}<br />
               In: {new Date(entry.clock_in_time).toLocaleString()}<br />
               Out: {entry.clock_out_time ? new Date(entry.clock_out_time).toLocaleString() : 'Ongoing'}<br />
               Duration: {calculateDuration(entry)}
