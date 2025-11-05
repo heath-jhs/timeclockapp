@@ -1,4 +1,3 @@
-// src/pages/InviteSetup.jsx
 import { useState, useEffect } from 'react';
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -46,20 +45,45 @@ export default function InviteSetup() {
     navigate('/employee');
   };
 
-  if (loading) return <div style={{ padding: 40 }}>Loading invite…</div>;
-  if (error && !email) return <div style={{ padding: 40, color: 'red' }}>{error}</div>;
+  if (loading) return <div className="p-10 text-center">Loading invite…</div>;
+  if (error && !email) return <div className="p-10 text-center text-red-600">{error}</div>;
 
   return (
-    <form onSubmit={handleSubmit} style={{ maxWidth: 400, margin: '60px auto', padding: 20 }}>
-      <h2>Complete Your Account</h2>
-      <p><strong>Email:</strong> {email}</p>
-      <input placeholder="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} required style={{ width: '100%', padding: 10, marginBottom: 12 }} />
-      <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required style={{ width: '100%', padding: 10, marginBottom: 12 }} />
-      <input type="password" placeholder="Confirm" value={confirm} onChange={e => setConfirm(e.target.value)} required style={{ width: '100%', padding: 10, marginBottom: 12 }} />
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <button type="submit" style={{ width: '100%', padding: 12, background: '#10b981', color: 'white', border: 'none', borderRadius: 6 }}>
-        Complete Setup
-      </button>
-    </form>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <form onSubmit={handleSubmit} className="p-8 max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg space-y-4">
+        <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Complete Your Account</h2>
+        <p className="text-center"><strong>Email:</strong> {email}</p>
+        <input
+          placeholder="Full Name"
+          value={fullName}
+          onChange={e => setFullName(e.target.value)}
+          required
+          className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md"
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md"
+        />
+        <input
+          type="password"
+          placeholder="Confirm"
+          value={confirm}
+          onChange={e => setConfirm(e.target.value)}
+          required
+          className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md"
+        />
+        {error && <p className="text-red-600 text-center">{error}</p>}
+        <button
+          type="submit"
+          className="w-full p-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
+        >
+          Complete Setup
+        </button>
+      </form>
+    </div>
   );
 }
