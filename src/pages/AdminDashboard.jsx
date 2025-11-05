@@ -40,7 +40,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-const MapBounds = ({ sites }) => {
+const MapBounds = ({ sites } ) => {
   const map = useMap();
   useEffect(() => {
     const validSites = sites.filter(site => site?.lat && site?.lon);
