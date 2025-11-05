@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import * as turf from '@turf/turf';
 
 const GEOFENCE_RADIUS = 100; // meters
 
 export function useGeofence() {
+  const supabase = useSupabaseClient();
   const watchId = useRef(null);
   const currentSite = useRef(null);
 
