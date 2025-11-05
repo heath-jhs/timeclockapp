@@ -45,6 +45,7 @@ const AdminDashboard = ({ logout }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [siteSort, setSiteSort] = useState('Recent');
+  const [siteSearch, setSiteSearch] = useState('');
 
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
@@ -229,7 +230,12 @@ const AdminDashboard = ({ logout }) => {
     return sites; // Recent is default from DB order
   };
 
-  const sortedSites = sortSites(sites, siteSort);
+  const filteredSites = sites.filter(site => 
+    site.name.toLowerCase().includes(siteSearch.toLowerCase()) || 
+    site.address.toLowerCase().includes(siteSearch.toLowerCase())
+  );
+
+  const sortedSites = sortSites(filteredSites, siteSort);
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
@@ -269,6 +275,7 @@ const AdminDashboard = ({ logout }) => {
             <option value="">Select Employee</option>
             {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.full_name || emp.username}</option>)}
           </select>
+          <input type="text" placeholder="Search Sites" value={siteSearch} onChange={e => setSiteSearch(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
           <select value={siteSort} onChange={e => setSiteSort(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }}>
             <option>Recent</option>
             <option>A-Z</option>
