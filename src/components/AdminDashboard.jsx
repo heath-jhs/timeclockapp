@@ -250,7 +250,7 @@ const AdminDashboard = ({ logout }) => {
     if (sortType === 'A-Z') {
       return [...sites].sort((a, b) => a.name.localeCompare(b.name));
     } else if (sortType === 'Z-A') {
-      return [...sites].sort((a, b) => b.name.localeCompare(b.name));
+      return [...sites].sort((a, b) => b.name.localeCompare(a.name));
     }
     return sites; // Recent is default from DB order
   };
@@ -541,18 +541,20 @@ const AdminDashboard = ({ logout }) => {
           <div key={groupIndex} style={{ marginBottom: '1rem' }}>
             <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600' }}>{group.site}</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Budgeted Hours</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Logged Hours</th>
+                </tr>
+              </thead>
               <tbody>
                 {group.employees.map((emp, empIndex) => (
-                  <React.Fragment key={empIndex}>
-                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '0.5rem' }}>{emp.employee}</td>
-                      <td style={{ padding: '0.5rem' }}>Budgeted Hours: {emp.budgeted.toFixed(2)}</td>
-                    </tr>
-                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '0.5rem' }}></td>
-                      <td style={{ padding: '0.5rem' }}>Logged Hours: {emp.logged.toFixed(2)}</td>
-                    </tr>
-                  </React.Fragment>
+                  <tr key={empIndex} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '0.5rem' }}>{emp.employee}</td>
+                    <td style={{ padding: '0.5rem' }}>{emp.budgeted.toFixed(2)}</td>
+                    <td style={{ padding: '0.5rem' }}>{emp.logged.toFixed(2)}</td>
+                  </tr>
                 ))}
               </tbody>
             </table>
