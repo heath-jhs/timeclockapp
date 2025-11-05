@@ -40,7 +40,6 @@ export default function App() {
     <SessionContextProvider supabaseClient={supabase}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/invite" element={<InviteSetup />} />
 
