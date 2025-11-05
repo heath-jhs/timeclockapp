@@ -1,4 +1,3 @@
-// src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import { SessionContextProvider, useSession } from '@supabase/auth-helpers-react';
@@ -41,6 +40,7 @@ export default function App() {
     <SessionContextProvider supabaseClient={supabase}>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/invite" element={<InviteSetup />} />
 
