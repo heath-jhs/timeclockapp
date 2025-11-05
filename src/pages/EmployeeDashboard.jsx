@@ -55,7 +55,7 @@ export default function EmployeeDashboard() {
     return format(new Date(date), 'MMM d');
   };
 
-  if (loading) return <div className="p-4">Loading...</div>;
+  if (loading) return <div className="p-4 text-center">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -64,7 +64,7 @@ export default function EmployeeDashboard() {
           <h1 className="text-xl font-bold">TimeClock</h1>
           <button
             onClick={() => navigate('/settings')}
-            className="text-sm underline"
+            className="text-sm underline text-white hover:text-gray-200"
           >
             Settings
           </button>
@@ -75,19 +75,19 @@ export default function EmployeeDashboard() {
         {/* Today's Schedule */}
         <section className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-3">Today's Job</h2>
-          {schedule ? (
+          {schedule && schedule.sites ? (
             <div className="space-y-2">
-              <p className="font-medium">{schedule.sites.name}</p>
-              <p className="text-sm text-gray-600">{schedule.sites.address}</p>
+              <p className="font-medium">{schedule.sites.name || 'Unknown'}</p>
+              <p className="text-sm text-gray-600">{schedule.sites.address || 'No address'}</p>
               <p className="text-sm">
                 {schedule.start_time} – {schedule.end_time}
                 {schedule.is_recurring && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Recurring</span>}
               </p>
               <a
-                href={`https://maps.google.com/?q=${schedule.sites.lat},${schedule.sites.lng}`}
+                href={`https://maps.google.com/?q=${schedule.sites.lat || 0},${schedule.sites.lng || 0}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 underline text-sm"
+                className="text-blue-600 underline text-sm hover:text-blue-800"
               >
                 Open in Maps
               </a>
