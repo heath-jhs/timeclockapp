@@ -334,6 +334,53 @@ const AdminDashboard = ({ logout }) => {
     return { site: site.name, employees: siteEmployees };
   }).filter(group => group.employees.length > 0);
 
+  const exportToExcel = (data, fileName, sheetName, headers) => {
+    const wb = XLSX.utils.book_new();
+    const wsData = [headers, ...data];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, fileName);
+  };
+
+  const exportComparison = () => {
+    const data = comparisonData.map(row => [
+      row.employee,
+      row.site,
+      row.worked.toFixed(2),
+      row.scheduled.toFixed(2),
+      row.variance.toFixed(2),
+      row.efficiency + '%'
+    ]);
+    exportToExcel(data, 'comparison.xlsx', 'Worked vs Scheduled', ['Employee', 'Site', 'Worked Hours', 'Scheduled Hours', 'Variance', 'Efficiency (%)']);
+  };
+
+  const exportTimelines = () => {
+    const wb = XLSX.utils.book_new();
+    employees.forEach(emp => {
+      const empData = getEfficiencyData(emp.id);
+      const wsData = [
+        ['Site', 'Efficiency (%)'],
+        ...empData.labels.map((label, i) => [label, empData.datasets[0].data[i]])
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb, ws, emp.full_name || emp.username);
+    });
+    XLSX.writeFile(wb, 'timelines.xlsx');
+  };
+
+  const exportPayroll = () => {
+    const wb = XLSX.utils.book_new();
+    payrollData.forEach(group => {
+      const wsData = [
+        ['Employee', 'Budgeted Hours', 'Logged Hours'],
+        ...group.employees.map(emp => [emp.employee, emp.budgeted.toFixed(2), emp.logged.toFixed(2)])
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb, ws, group.site.slice(0, 31)); // Sheet names max 31 chars
+    });
+    XLSX.writeFile(wb, 'payroll.xlsx');
+  };
+
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
@@ -507,60 +554,73 @@ const AdminDashboard = ({ logout }) => {
           </div>
         )}
         {reportStart && reportEnd && reportTab === 'comparison' && (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
-                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
-                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Worked Hours</th>
-                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Scheduled Hours</th>
-                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Variance</th>
-                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Efficiency (%)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {comparisonData.map((row, index) => (
-                <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                  <td style={{ padding: '0.5rem' }}>{row.employee}</td>
-                  <td style={{ padding: '0.5rem' }}>{row.site}</td>
-                  <td style={{ padding: '0.5rem' }}>{row.worked.toFixed(2)}</td>
-                  <td style={{ padding: '0.5rem' }}>{row.scheduled.toFixed(2)}</td>
-                  <td style={{ padding: '0.5rem' }}>{row.variance.toFixed(2)}</td>
-                  <td style={{ padding: '0.5rem' }}>{row.efficiency}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        {reportStart && reportEnd && reportTab === 'timelines' && employees.map(emp => (
-          <div key={emp.id} style={{ marginBottom: '2rem' }}>
-            <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>{emp.full_name || emp.username} Efficiency Timeline</h3>
-            <Line data={getEfficiencyData(emp.id)} options={{ responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Efficiency Over Assignments' } } }} />
-          </div>
-        ))}
-        {reportStart && reportEnd && reportTab === 'payroll' && payrollData.map((group, groupIndex) => (
-          <div key={groupIndex} style={{ marginBottom: '1rem' }}>
-            <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600' }}>{group.site}</h3>
+          <>
+            <button onClick={exportComparison} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
                   <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Budgeted Hours</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Logged Hours</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Worked Hours</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Scheduled Hours</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Variance</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Efficiency (%)</th>
                 </tr>
               </thead>
               <tbody>
-                {group.employees.map((emp, empIndex) => (
-                  <tr key={empIndex} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '0.5rem' }}>{emp.employee}</td>
-                    <td style={{ padding: '0.5rem' }}>{emp.budgeted.toFixed(2)}</td>
-                    <td style={{ padding: '0.5rem' }}>{emp.logged.toFixed(2)}</td>
+                {comparisonData.map((row, index) => (
+                  <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '0.5rem' }}>{row.employee}</td>
+                    <td style={{ padding: '0.5rem' }}>{row.site}</td>
+                    <td style={{ padding: '0.5rem' }}>{row.worked.toFixed(2)}</td>
+                    <td style={{ padding: '0.5rem' }}>{row.scheduled.toFixed(2)}</td>
+                    <td style={{ padding: '0.5rem' }}>{row.variance.toFixed(2)}</td>
+                    <td style={{ padding: '0.5rem' }}>{row.efficiency}%</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        ))}
+          </>
+        )}
+        {reportStart && reportEnd && reportTab === 'timelines' && (
+          <>
+            <button onClick={exportTimelines} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
+            {employees.map(emp => (
+              <div key={emp.id} style={{ marginBottom: '2rem' }}>
+                <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>{emp.full_name || emp.username} Efficiency Timeline</h3>
+                <Line data={getEfficiencyData(emp.id)} options={{ responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Efficiency Over Assignments' } } }} />
+              </div>
+            ))}
+          </>
+        )}
+        {reportStart && reportEnd && reportTab === 'payroll' && (
+          <>
+            <button onClick={exportPayroll} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
+            {payrollData.map((group, groupIndex) => (
+              <div key={groupIndex} style={{ marginBottom: '1rem' }}>
+                <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600' }}>{group.site}</h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                      <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem' }}>Budgeted Hours</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem' }}>Logged Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.employees.map((emp, empIndex) => (
+                      <tr key={empIndex} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '0.5rem' }}>{emp.employee}</td>
+                        <td style={{ padding: '0.5rem' }}>{emp.budgeted.toFixed(2)}</td>
+                        <td style={{ padding: '0.5rem' }}>{emp.logged.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </>
+        )}
       </div>
       <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
     </div>
