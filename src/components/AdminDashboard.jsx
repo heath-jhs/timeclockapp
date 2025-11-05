@@ -22,6 +22,7 @@ import {
   Legend,
 } from 'chart.js';
 import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -312,7 +313,9 @@ const AdminDashboard = ({ logout }) => {
     const wsData = [headers, ...data];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    XLSX.writeFile(wb, fileName);
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    saveAs(blob, fileName);
   };
   const exportComparison = () => {
     const data = comparisonData.map(row => [
@@ -336,7 +339,9 @@ const AdminDashboard = ({ logout }) => {
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       XLSX.utils.book_append_sheet(wb, ws, emp.full_name || emp.username);
     });
-    XLSX.writeFile(wb, 'timelines.xlsx');
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    saveAs(blob, 'timelines.xlsx');
   };
   const exportPayroll = () => {
     const wb = XLSX.utils.book_new();
@@ -348,7 +353,9 @@ const AdminDashboard = ({ logout }) => {
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       XLSX.utils.book_append_sheet(wb, ws, group.site.slice(0, 31)); // Sheet names max 31 chars
     });
-    XLSX.writeFile(wb, 'payroll.xlsx');
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    saveAs(blob, 'payroll.xlsx');
   };
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
@@ -371,7 +378,7 @@ const AdminDashboard = ({ logout }) => {
             <input type="email" placeholder="Email" value={newEmployeeEmail} onChange={e => setNewEmployeeEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
           </div>
           <label style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-            <input type="checkbox" checked={newEmployeeIsAdmin} onChange={e => setNewEmployeeIsAdmin(e.target.checked)} style={{ marginRight: '0.5rem' }} /> Admin
+            <input type="checkbox" checked={newEmployeeIsAdmin} onChange={e => setNewEmployeeIsAdmin(e.target.value)} style={{ marginRight: '0.5rem' }} /> Admin
           </label>
           <button onClick={addEmployee} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Employee</button>
         </div>
