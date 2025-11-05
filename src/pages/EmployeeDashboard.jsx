@@ -22,23 +22,25 @@ export default function EmployeeDashboard() {
 
     // Get today's schedule
     const today = new Date().toISOString().split('T')[0];
-    const { data: sched } = await supabase
+    const { data: sched, error: schedError } = await supabase
       .from('schedules')
       .select('*, sites(*)')
       .eq('user_id', user.id)
       .eq('date', today)
       .single();
 
+    if (schedError && schedError.code !== 'PGRST116') console.error(schedError);
     setSchedule(sched);
 
-    // Get recent logs
-    const { data: logData } = await supabase
-      .from('time_logs')
+    // Get recent logs (use 'clock_events' if 'time_logs' is wrong)
+    const { data: logData, error: logError } = await supabase
+      .from('time_logs') // Replace with 'clock_events' if that's the table
       .select('*, sites(name)')
       .eq('user_id', user.id)
       .order('timestamp', { ascending: false })
       .limit(10);
 
+    if (logError) console.error(logError);
     setLogs(logData || []);
     setLoading(false);
   };
@@ -57,7 +59,7 @@ export default function EmployeeDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-primary text-white p-4 shadow">
+      <header className="bg-blue-600 text-white p-4 shadow">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <h1 className="text-xl font-bold">TimeClock</h1>
           <button
@@ -85,7 +87,7 @@ export default function EmployeeDashboard() {
                 href={`https://maps.google.com/?q=${schedule.sites.lat},${schedule.sites.lng}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary underline text-sm"
+                className="text-blue-600 underline text-sm"
               >
                 Open in Maps
               </a>
