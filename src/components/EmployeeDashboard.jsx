@@ -1,14 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../supabaseClient';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import jshLogo from '../assets/jsh-logo.png'; // From assets
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
 
 const EmployeeDashboard = ({ logout }) => {
   const [assignedSites, setAssignedSites] = useState([]);
   const [selectedSite, setSelectedSite] = useState('');
   const [currentEntry, setCurrentEntry] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [schedule, setSchedule] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
-
-  const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   useEffect(() => {
     const fetchUserAndData = async () => {
@@ -17,30 +34,48 @@ const EmployeeDashboard = ({ logout }) => {
         if (userError) throw userError;
         setUserId(user.id);
 
-        // Fetch assigned sites
-        const { data: assignments, error: assignError } = await supabase
+        // Profile
+        const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        setProfile(prof);
+
+        // Assigned sites
+        const { data: assignments } = await supabase
           .from('employee_sites')
           .select('site_id')
           .eq('employee_id', user.id);
-        if (assignError) throw assignError;
-
         const siteIds = assignments.map(a => a.site_id);
-        const { data: sites, error: sitesError } = await supabase
+        const { data: sites } = await supabase
           .from('sites')
           .select('*')
           .in('id', siteIds);
-        if (sitesError) throw sitesError;
         setAssignedSites(sites);
 
-        // Check for open entry (clock_out_time is null)
-        const { data: entry, error: entryError } = await supabase
+        // History
+        const { data: hist } = await supabase
+          .from('time_entries')
+          .select('*')
+          .eq('employee_id', user.id)
+          .order('clock_in_time', { ascending: false })
+          .limit(20);
+        setHistory(hist);
+
+        // Schedule (assume schedules table with employee_id, date, start/end)
+        const { data: sched } = await supabase
+          .from('schedules')
+          .select('*')
+          .eq('employee_id', user.id)
+          .order('date');
+
+        setSchedule(sched);
+
+        // Current entry
+        const { data: entry } = await supabase
           .from('time_entries')
           .select('*')
           .eq('employee_id', user.id)
           .is('clock_out_time', null)
           .order('clock_in_time', { ascending: false })
           .limit(1);
-        if (entryError) throw entryError;
         setCurrentEntry(entry[0] || null);
       } catch (err) {
         setError(err.message);
@@ -112,28 +147,76 @@ const EmployeeDashboard = ({ logout }) => {
     }
   };
 
+  const calculateDuration = (entry) => {
+    if (!entry.clock_out_time) return 'Ongoing';
+    const start = new Date(entry.clock_in_time);
+    const end = new Date(entry.clock_out_time);
+    const diff = (end - start) / (1000 * 60 * 60);
+    return diff.toFixed(2) + ' hours';
+  };
+
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <img src={jshLogo} alt="JSH Logo" style={{ maxHeight: '60px' }} />
+      </div>
       <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Employee Dashboard</h1>
       {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{error}</div>}
+      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Profile</h2>
+        <p>Name: {profile?.full_name || 'Not set'}</p>
+        <p>Role: {profile?.role || 'Employee'}</p>
+        <p>Daily Hours: {profile?.work_hours || 8}</p>
+      </div>
       <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Clock In/Out</h2>
         {currentEntry ? (
           <div>
-            <p style={{ marginBottom: '1rem' }}>Clocked in at site ID {currentEntry.site_id} since {new Date(currentEntry.clock_in_time).toLocaleString()}</p>
-            <button onClick={clockOut} style={{ width: '100%', background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Clock Out</button>
+            <p>Clocked in at {assignedSites.find(s => s.id === currentEntry.site_id)?.name} since {new Date(currentEntry.clock_in_time).toLocaleString()}</p>
+            <button onClick={clockOut} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1rem' }}>Clock Out</button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div>
             <select value={selectedSite} onChange={e => setSelectedSite(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }}>
               <option value="">Select Site</option>
               {assignedSites.map(site => <option key={site.id} value={site.id}>{site.name}</option>)}
             </select>
-            <button onClick={clockIn} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Clock In</button>
+            <button onClick={clockIn} style={{ background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Clock In</button>
           </div>
         )}
       </div>
-      <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
+      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Schedule</h2>
+        <ul>
+          {schedule.map(s => (
+            <li key={s.id}>{new Date(s.date).toLocaleDateString()}: {s.start_time} - {s.end_time}</li>
+          ))}
+        </ul>
+      </div>
+      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>History</h2>
+        <ul>
+          {history.map(entry => (
+            <li key={entry.id}>
+              Site: {assignedSites.find(s => s.id === entry.site_id)?.name}<br />
+              In: {new Date(entry.clock_in_time).toLocaleString()}<br />
+              Out: {entry.clock_out_time ? new Date(entry.clock_out_time).toLocaleString() : 'Ongoing'}<br />
+              Duration: {calculateDuration(entry)}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div style={{ height: '400px', marginBottom: '1.5rem' }}>
+        <MapContainer center={[37.0902, -95.7129]} zoom={4} style={{ height: '100%' }}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {assignedSites.map(site => site.lat && site.lon && (
+            <Marker key={site.id} position={[site.lat, site.lon]}>
+              <Popup>{site.name}</Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
+      <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Logout</button>
     </div>
   );
 };
