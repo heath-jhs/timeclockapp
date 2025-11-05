@@ -17,8 +17,11 @@ export default function EmployeeDashboard() {
   }, [supabase]);
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('User fetch error:', userError);
+      return;
+    }
 
     // Get today's schedule
     const today = new Date().toISOString().split('T')[0];
@@ -29,7 +32,7 @@ export default function EmployeeDashboard() {
       .eq('date', today)
       .single();
 
-    if (schedError && schedError.code !== 'PGRST116') console.error(schedError);
+    if (schedError && schedError.code !== 'PGRST116') console.error('Schedule error:', schedError);
     setSchedule(sched);
 
     // Get recent logs (use 'clock_events' if 'time_logs' is wrong)
@@ -40,7 +43,7 @@ export default function EmployeeDashboard() {
       .order('timestamp', { ascending: false })
       .limit(10);
 
-    if (logError) console.error(logError);
+    if (logError) console.error('Logs error:', logError);
     setLogs(logData || []);
     setLoading(false);
   };
