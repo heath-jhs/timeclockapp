@@ -1,8 +1,9 @@
-// src/pages/Profile.jsx
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react';
 
-export default function Profile({ user }) {
+export default function Profile() {
+  const supabase = useSupabaseClient();
+  const user = useUser();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -22,8 +23,8 @@ export default function Profile({ user }) {
       setLoading(false);
     }
 
-    fetchProfile();
-  }, [user.id]);
+    if (user) fetchProfile();
+  }, [user, supabase]);
 
   if (loading) return <p className="p-6 text-center">Loading profile...</p>;
 
