@@ -195,6 +195,17 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
+  const deleteSite = async (id) => {
+    if (!window.confirm('Delete this site?')) return;
+    try {
+      const { error } = await supabase.from('sites').delete().eq('id', id);
+      if (error) throw error;
+      setSuccess('Site deleted');
+      await refreshAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
   const assignSites = async () => {
     try {
       const inserts = selectedSites.map(siteId => ({
@@ -211,6 +222,17 @@ const AdminDashboard = ({ logout }) => {
       setNewAssignEnd(null);
       setError(null);
       setSuccess('Sites assigned successfully');
+      await refreshAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+  const deleteAssignment = async (id) => {
+    if (!window.confirm('Delete this assignment?')) return;
+    try {
+      const { error } = await supabase.from('employee_sites').delete().eq('id', id);
+      if (error) throw error;
+      setSuccess('Assignment deleted');
       await refreshAll();
     } catch (err) {
       setError(err.message);
@@ -471,6 +493,7 @@ const AdminDashboard = ({ logout }) => {
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>Start</th>
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>End</th>
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>Duration</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -481,6 +504,9 @@ const AdminDashboard = ({ logout }) => {
                 <td style={{ padding: '0.5rem' }}>{assign.start_date ? new Date(assign.start_date).toLocaleString() : 'N/A'}</td>
                 <td style={{ padding: '0.5rem' }}>{assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A'}</td>
                 <td style={{ padding: '0.5rem' }}>{calculateDuration(assign)}</td>
+                <td style={{ padding: '0.5rem' }}>
+                  <button onClick={() => deleteAssignment(assign.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                </td>
               </tr>
             ))}
           </tbody>
