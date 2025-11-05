@@ -9,6 +9,27 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import jshLogo from '../assets/jsh-logo.png';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -47,6 +68,9 @@ const AdminDashboard = ({ logout }) => {
   const [success, setSuccess] = useState(null);
   const [siteSort, setSiteSort] = useState('Recent');
   const [siteSearch, setSiteSearch] = useState('');
+  const [reportTab, setReportTab] = useState('comparison');
+  const [reportStart, setReportStart] = useState(null);
+  const [reportEnd, setReportEnd] = useState(null);
 
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
@@ -238,6 +262,77 @@ const AdminDashboard = ({ logout }) => {
 
   const sortedSites = sortSites(filteredSites, siteSort);
 
+  // Report calculations
+  const getWorkedHours = (employeeId, siteId, startDate, endDate) => {
+    const filteredEntries = timeEntries.filter(entry => 
+      entry.employee_id === employeeId && 
+      entry.site_id === siteId && 
+      new Date(entry.clock_in_time) >= startDate && 
+      new Date(entry.clock_in_time) <= endDate
+    );
+    return filteredEntries.reduce((total, entry) => {
+      if (entry.clock_out_time) {
+        const start = new Date(entry.clock_in_time);
+        const end = new Date(entry.clock_out_time);
+        return total + (end - start) / (1000 * 60 * 60);
+      }
+      return total;
+    }, 0);
+  };
+
+  const getBudgetedHours = (employee, assignment, startDate, endDate) => {
+    const assignStart = new Date(assignment.start_date || startDate);
+    const assignEnd = new Date(assignment.end_date || endDate);
+    const periodStart = new Date(startDate);
+    const periodEnd = new Date(endDate);
+    const overlapStart = new Date(Math.max(assignStart, periodStart));
+    const overlapEnd = new Date(Math.min(assignEnd, periodEnd));
+    if (overlapStart > overlapEnd) return 0;
+    const days = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24));
+    return days * (employee.work_hours || 8);
+  };
+
+  const getEfficiencyData = (employeeId) => {
+    const employeeAssignments = assignments.filter(a => a.employee_id === employeeId);
+    const data = employeeAssignments.map(a => {
+      const worked = getWorkedHours(employeeId, a.site_id, reportStart || new Date(0), reportEnd || new Date());
+      const scheduled = getBudgetedHours(employees.find(e => e.id === employeeId), a, reportStart || new Date(0), reportEnd || new Date());
+      const efficiency = scheduled > 0 ? (worked / scheduled * 100).toFixed(2) : 0;
+      return { site: a.site.name, efficiency };
+    });
+    return {
+      labels: data.map(d => d.site),
+      datasets: [{
+        label: 'Efficiency (%)',
+        data: data.map(d => d.efficiency),
+        borderColor: '#4299e1',
+        backgroundColor: 'rgba(66, 153, 225, 0.5)',
+      }],
+    };
+  };
+
+  const comparisonData = employees.flatMap(emp => {
+    return assignments.filter(a => a.employee_id === emp.id).map(a => {
+      const worked = getWorkedHours(emp.id, a.site_id, reportStart || new Date(0), reportEnd || new Date());
+      const scheduled = getBudgetedHours(emp, a, reportStart || new Date(0), reportEnd || new Date());
+      const variance = worked - scheduled;
+      const efficiency = scheduled > 0 ? (worked / scheduled * 100).toFixed(2) : 0;
+      return { employee: emp.full_name || emp.username, site: a.site.name, worked, scheduled, variance, efficiency };
+    });
+  });
+
+  const payrollData = sites.map(site => {
+    const siteAssignments = assignments.filter(a => a.site_id === site.id);
+    const siteEmployees = siteAssignments.map(a => {
+      const emp = employees.find(e => e.id === a.employee_id);
+      if (!emp) return null;
+      const budgeted = getBudgetedHours(emp, a, reportStart || new Date(0), reportEnd || new Date());
+      const logged = getWorkedHours(emp.id, site.id, reportStart || new Date(0), reportEnd || new Date());
+      return { employee: emp.full_name || emp.username, budgeted, logged };
+    }).filter(Boolean);
+    return { site: site.name, employees: siteEmployees };
+  }).filter(group => group.employees.length > 0);
+
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
@@ -391,6 +486,75 @@ const AdminDashboard = ({ logout }) => {
             </Marker>
           ))}
         </MapContainer>
+      </div>
+      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Reports</h2>
+        <div style={{ display: 'flex', marginBottom: '1rem' }}>
+          <button onClick={() => setReportTab('comparison')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'comparison' ? '#4299e1' : '#e2e8f0', color: reportTab === 'comparison' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Worked vs Scheduled</button>
+          <button onClick={() => setReportTab('timelines')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'timelines' ? '#4299e1' : '#e2e8f0', color: reportTab === 'timelines' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Efficiency Timelines</button>
+          <button onClick={() => setReportTab('payroll')} style={{ padding: '0.5rem 1rem', background: reportTab === 'payroll' ? '#4299e1' : '#e2e8f0', color: reportTab === 'payroll' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Payroll Report</button>
+        </div>
+        <div style={{ display: 'flex', marginBottom: '1rem' }}>
+          <div style={{ marginRight: '1rem' }}>
+            <DatePicker selected={reportStart} onChange={date => setReportStart(date)} dateFormat="MMMM d, yyyy" placeholderText="Start Date" className="p-2 border border-gray-300 rounded-md" />
+          </div>
+          <div>
+            <DatePicker selected={reportEnd} onChange={date => setReportEnd(date)} dateFormat="MMMM d, yyyy" placeholderText="End Date" className="p-2 border border-gray-300 rounded-md" />
+          </div>
+        </div>
+        {reportTab === 'comparison' && (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Worked Hours</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Scheduled Hours</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Variance</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Efficiency (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparisonData.map((row, index) => (
+                <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '0.5rem' }}>{row.employee}</td>
+                  <td style={{ padding: '0.5rem' }}>{row.site}</td>
+                  <td style={{ padding: '0.5rem' }}>{row.worked.toFixed(2)}</td>
+                  <td style={{ padding: '0.5rem' }}>{row.scheduled.toFixed(2)}</td>
+                  <td style={{ padding: '0.5rem' }}>{row.variance.toFixed(2)}</td>
+                  <td style={{ padding: '0.5rem' }}>{row.efficiency}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {reportTab === 'timelines' && employees.map(emp => (
+          <div key={emp.id} style={{ marginBottom: '2rem' }}>
+            <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>{emp.full_name || emp.username} Efficiency Timeline</h3>
+            <Line data={getEfficiencyData(emp.id)} options={{ responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Efficiency Over Assignments' } } }} />
+          </div>
+        ))}
+        {reportTab === 'payroll' && payrollData.map((group, groupIndex) => (
+          <div key={groupIndex} style={{ marginBottom: '1rem' }}>
+            <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600' }}>{group.site}</h3>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <tbody>
+                {group.employees.map((emp, empIndex) => (
+                  <React.Fragment key={empIndex}>
+                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '0.5rem' }}>{emp.employee}</td>
+                      <td style={{ padding: '0.5rem' }}>Budgeted Hours: {emp.budgeted.toFixed(2)}</td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '0.5rem' }}></td>
+                      <td style={{ padding: '0.5rem' }}>Logged Hours: {emp.logged.toFixed(2)}</td>
+                    </tr>
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
       </div>
       <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
     </div>
