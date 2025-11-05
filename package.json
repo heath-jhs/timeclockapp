@@ -19,7 +19,8 @@
     "react-datepicker": "^4.25.0",
     "chart.js": "^4.4.4",
     "react-chartjs-2": "^5.2.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "file-saver": "^2.0.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
