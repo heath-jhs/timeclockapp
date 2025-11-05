@@ -9,8 +9,8 @@ import EmployeeSettings from './pages/EmployeeSettings';
 import InviteSetup from './pages/InviteSetup';
 import Profile from './pages/Profile';
 import EmployeeSplash from './pages/EmployeeSplash';
-import AdminDashboard from './pages/AdminDashboard';
-// Import other components/pages as needed (e.g., from src/components/auth if separate)
+import AdminDashboard from './components/AdminDashboard'; // Updated path to match your structure
+// Import other components/pages as needed (e.g., from src/components if separate)
 
 function App() {
   const [session, setSession] = useState(null); // Optional for global session tracking
@@ -27,7 +27,7 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/employee" element={<EmployeeSplash />} />
           <Route path="/admin" element={<AdminDashboard />} />
-          {/* Add routes for other components like src/components/auth/ClockIn.jsx if needed */}
+          {/* Add routes for other components like src/components/ClockIn.jsx if needed */}
           <Route path="/" element={<Navigate to="/login" />} />
         </Routes>
       </Router>
