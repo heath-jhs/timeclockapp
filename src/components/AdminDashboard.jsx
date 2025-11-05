@@ -69,8 +69,8 @@ const AdminDashboard = ({ logout }) => {
   const [siteSort, setSiteSort] = useState('Recent');
   const [siteSearch, setSiteSearch] = useState('');
   const [reportTab, setReportTab] = useState('comparison');
-  const [reportStart, setReportStart] = useState(null);
-  const [reportEnd, setReportEnd] = useState(null);
+  const [reportStart, setReportStart] = useState(new Date(new Date().setDate(new Date().getDate() - 30))); // Default last 30 days
+  const [reportEnd, setReportEnd] = useState(new Date());
 
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 
@@ -250,7 +250,7 @@ const AdminDashboard = ({ logout }) => {
     if (sortType === 'A-Z') {
       return [...sites].sort((a, b) => a.name.localeCompare(b.name));
     } else if (sortType === 'Z-A') {
-      return [...sites].sort((a, b) => b.name.localeCompare(a.name));
+      return [...sites].sort((a, b) => b.name.localeCompare(b.name));
     }
     return sites; // Recent is default from DB order
   };
@@ -295,8 +295,8 @@ const AdminDashboard = ({ logout }) => {
   const getEfficiencyData = (employeeId) => {
     const employeeAssignments = assignments.filter(a => a.employee_id === employeeId);
     const data = employeeAssignments.map(a => {
-      const worked = getWorkedHours(employeeId, a.site_id, reportStart || new Date(0), reportEnd || new Date());
-      const scheduled = getBudgetedHours(employees.find(e => e.id === employeeId), a, reportStart || new Date(0), reportEnd || new Date());
+      const worked = getWorkedHours(employeeId, a.site_id, reportStart, reportEnd);
+      const scheduled = getBudgetedHours(employees.find(e => e.id === employeeId), a, reportStart, reportEnd);
       const efficiency = scheduled > 0 ? (worked / scheduled * 100).toFixed(2) : 0;
       return { site: a.site.name, efficiency };
     });
@@ -313,8 +313,8 @@ const AdminDashboard = ({ logout }) => {
 
   const comparisonData = employees.flatMap(emp => {
     return assignments.filter(a => a.employee_id === emp.id).map(a => {
-      const worked = getWorkedHours(emp.id, a.site_id, reportStart || new Date(0), reportEnd || new Date());
-      const scheduled = getBudgetedHours(emp, a, reportStart || new Date(0), reportEnd || new Date());
+      const worked = getWorkedHours(emp.id, a.site_id, reportStart, reportEnd);
+      const scheduled = getBudgetedHours(emp, a, reportStart, reportEnd);
       const variance = worked - scheduled;
       const efficiency = scheduled > 0 ? (worked / scheduled * 100).toFixed(2) : 0;
       return { employee: emp.full_name || emp.username, site: a.site.name, worked, scheduled, variance, efficiency };
@@ -326,8 +326,8 @@ const AdminDashboard = ({ logout }) => {
     const siteEmployees = siteAssignments.map(a => {
       const emp = employees.find(e => e.id === a.employee_id);
       if (!emp) return null;
-      const budgeted = getBudgetedHours(emp, a, reportStart || new Date(0), reportEnd || new Date());
-      const logged = getWorkedHours(emp.id, site.id, reportStart || new Date(0), reportEnd || new Date());
+      const budgeted = getBudgetedHours(emp, a, reportStart, reportEnd);
+      const logged = getWorkedHours(emp.id, site.id, reportStart, reportEnd);
       return { employee: emp.full_name || emp.username, budgeted, logged };
     }).filter(Boolean);
     return { site: site.name, employees: siteEmployees };
@@ -490,11 +490,6 @@ const AdminDashboard = ({ logout }) => {
       <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Reports</h2>
         <div style={{ display: 'flex', marginBottom: '1rem' }}>
-          <button onClick={() => setReportTab('comparison')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'comparison' ? '#4299e1' : '#e2e8f0', color: reportTab === 'comparison' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Worked vs Scheduled</button>
-          <button onClick={() => setReportTab('timelines')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'timelines' ? '#4299e1' : '#e2e8f0', color: reportTab === 'timelines' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Efficiency Timelines</button>
-          <button onClick={() => setReportTab('payroll')} style={{ padding: '0.5rem 1rem', background: reportTab === 'payroll' ? '#4299e1' : '#e2e8f0', color: reportTab === 'payroll' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Payroll Report</button>
-        </div>
-        <div style={{ display: 'flex', marginBottom: '1rem' }}>
           <div style={{ marginRight: '1rem' }}>
             <DatePicker selected={reportStart} onChange={date => setReportStart(date)} dateFormat="MMMM d, yyyy" placeholderText="Start Date" className="p-2 border border-gray-300 rounded-md" />
           </div>
@@ -502,7 +497,15 @@ const AdminDashboard = ({ logout }) => {
             <DatePicker selected={reportEnd} onChange={date => setReportEnd(date)} dateFormat="MMMM d, yyyy" placeholderText="End Date" className="p-2 border border-gray-300 rounded-md" />
           </div>
         </div>
-        {reportTab === 'comparison' && (
+        {(!reportStart || !reportEnd) && <p style={{ color: '#9b2c2c', marginBottom: '1rem' }}>Please select a date range to view reports.</p>}
+        {reportStart && reportEnd && (
+          <div style={{ display: 'flex', marginBottom: '1rem' }}>
+            <button onClick={() => setReportTab('comparison')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'comparison' ? '#4299e1' : '#e2e8f0', color: reportTab === 'comparison' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Worked vs Scheduled</button>
+            <button onClick={() => setReportTab('timelines')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'timelines' ? '#4299e1' : '#e2e8f0', color: reportTab === 'timelines' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Efficiency Timelines</button>
+            <button onClick={() => setReportTab('payroll')} style={{ padding: '0.5rem 1rem', background: reportTab === 'payroll' ? '#4299e1' : '#e2e8f0', color: reportTab === 'payroll' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Payroll Report</button>
+          </div>
+        )}
+        {reportStart && reportEnd && reportTab === 'comparison' && (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
@@ -528,13 +531,13 @@ const AdminDashboard = ({ logout }) => {
             </tbody>
           </table>
         )}
-        {reportTab === 'timelines' && employees.map(emp => (
+        {reportStart && reportEnd && reportTab === 'timelines' && employees.map(emp => (
           <div key={emp.id} style={{ marginBottom: '2rem' }}>
             <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>{emp.full_name || emp.username} Efficiency Timeline</h3>
             <Line data={getEfficiencyData(emp.id)} options={{ responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Efficiency Over Assignments' } } }} />
           </div>
         ))}
-        {reportTab === 'payroll' && payrollData.map((group, groupIndex) => (
+        {reportStart && reportEnd && reportTab === 'payroll' && payrollData.map((group, groupIndex) => (
           <div key={groupIndex} style={{ marginBottom: '1rem' }}>
             <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600' }}>{group.site}</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
