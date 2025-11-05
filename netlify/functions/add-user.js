@@ -27,6 +27,7 @@ exports.handler = async (event) => {
       username: email,
       role,
       full_name: name,
+      is_admin: isAdmin,  // Added to set is_admin boolean
     }, { onConflict: 'id' });
     if (profileError) throw profileError;
     return { statusCode: 200, body: JSON.stringify({ message: 'User invited successfully' }) };
