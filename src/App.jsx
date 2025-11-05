@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
 import { supabaseClient } from './lib/supabase'; // Adjust if your singleton is in src/lib/supabase.js
@@ -16,15 +16,12 @@ class ErrorBoundary extends React.Component {
     super(props);
     this.state = { hasError: false, error: null };
   }
-
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
-
   componentDidCatch(error, errorInfo) {
     console.error('Uncaught error:', error, errorInfo);
   }
-
   render() {
     if (this.state.hasError) {
       return <div className="p-4 text-red-600">Something went wrong: {this.state.error.message}. Check console for details.</div>;
@@ -35,7 +32,6 @@ class ErrorBoundary extends React.Component {
 
 function App() {
   const [session, setSession] = useState(null);
-
   useEffect(() => {
     // Optional session listener for debugging
     const { data: listener } = supabaseClient.auth.onAuthStateChange((event, session) => {
@@ -43,7 +39,6 @@ function App() {
     });
     return () => listener?.subscription.unsubscribe();
   }, []);
-
   return (
     <SessionContextProvider supabaseClient={supabaseClient} initialSession={session}>
       <ErrorBoundary>
