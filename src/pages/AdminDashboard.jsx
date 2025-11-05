@@ -43,7 +43,7 @@ L.Icon.Default.mergeOptions({
 const MapBounds = ({ sites }) => {
   const map = useMap();
   useEffect(() => {
-    const validSites = sites.filter(site => site.lat && site.lon);
+    const validSites = sites.filter(site => site?.lat && site?.lon);
     if (validSites.length > 0) {
       const bounds = L.latLngBounds(validSites.map(site => [site.lat, site.lon]));
       map.fitBounds(bounds, { padding: [50, 50] });
@@ -322,7 +322,7 @@ const AdminDashboard = ({ logout }) => {
       const scheduled = getBudgetedHours(emp, a, reportStart, reportEnd);
       const variance = worked - scheduled;
       const efficiency = scheduled > 0 ? (worked / scheduled * 100).toFixed(2) : 0;
-      return { employee: emp.full_name || emp.username, site: a.sites?.name || 'Unknown', worked, scheduled, variance, efficiency };
+      return { employee: emp.full_name || emp.username || 'Unknown', site: a.sites?.name || 'Unknown', worked, scheduled, variance, efficiency };
     });
   });
 
@@ -333,7 +333,7 @@ const AdminDashboard = ({ logout }) => {
       if (!emp) return null;
       const budgeted = getBudgetedHours(emp, a, reportStart, reportEnd);
       const logged = getWorkedHours(emp.id, site.id, reportStart, reportEnd);
-      return { employee: emp.full_name || emp.username, budgeted, logged };
+      return { employee: emp.full_name || emp.username || 'Unknown', budgeted, logged };
     }).filter(Boolean);
     return { site: site.name || 'Unknown', employees: siteEmployees };
   }).filter(group => group.employees.length > 0);
