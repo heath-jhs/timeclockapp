@@ -1,6 +1,5 @@
-// src/components/AdminDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -23,6 +22,7 @@ import {
 } from 'chart.js';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -32,12 +32,14 @@ ChartJS.register(
   Tooltip,
   Legend
 );
+
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
 });
+
 const MapBounds = ({ sites }) => {
   const map = useMap();
   useEffect(() => {
@@ -49,6 +51,7 @@ const MapBounds = ({ sites }) => {
   }, [sites, map]);
   return null;
 };
+
 const AdminDashboard = ({ logout }) => {
   const [employees, setEmployees] = useState([]);
   const [sites, setSites] = useState([]);
@@ -70,25 +73,33 @@ const AdminDashboard = ({ logout }) => {
   const [reportTab, setReportTab] = useState('comparison');
   const [reportStart, setReportStart] = useState(new Date(new Date().setDate(new Date().getDate() - 30))); // Default last 30 days
   const [reportEnd, setReportEnd] = useState(new Date());
-  const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+  const supabase = useSupabaseClient();
+
   const refreshAll = async () => {
     setError(null);
-    await Promise.all([
-      fetchEmployees(),
-      fetchSites(),
-      fetchAssignments(),
-      fetchTimeEntries()
-    ]);
+    try {
+      await Promise.all([
+        fetchEmployees(),
+        fetchSites(),
+        fetchAssignments(),
+        fetchTimeEntries()
+      ]);
+    } catch (err) {
+      setError('Data refresh failed: ' + err.message);
+    }
   };
+
   useEffect(() => {
     refreshAll();
-  }, []);
+  }, [supabase]);
+
   useEffect(() => {
     if (success) {
       const timer = setTimeout(() => setSuccess(null), 3000);
       return () => clearTimeout(timer);
     }
   }, [success]);
+
   const fetchEmployees = async () => {
     try {
       const { data, error } = await supabase.from('profiles').select('*');
@@ -98,6 +109,7 @@ const AdminDashboard = ({ logout }) => {
       setError('Employees fetch failed: ' + err.message);
     }
   };
+
   const fetchSites = async () => {
     try {
       const { data, error } = await supabase.from('sites').select('*').order('created_at', { ascending: false });
@@ -107,6 +119,7 @@ const AdminDashboard = ({ logout }) => {
       setError('Sites fetch failed: ' + err.message);
     }
   };
+
   const fetchAssignments = async () => {
     try {
       const { data, error } = await supabase
@@ -119,6 +132,7 @@ const AdminDashboard = ({ logout }) => {
       setError('Assignments fetch failed: ' + err.message);
     }
   };
+
   const fetchTimeEntries = async () => {
     try {
       const { data, error } = await supabase
@@ -131,6 +145,7 @@ const AdminDashboard = ({ logout }) => {
       setError('Time entries fetch failed: ' + err.message);
     }
   };
+
   const updateProfile = async (id, field, value) => {
     try {
       const { error } = await supabase.from('profiles').update({ [field]: value }).eq('id', id);
@@ -140,6 +155,7 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
+
   const addEmployee = async () => {
     try {
       const response = await fetch('/.netlify/functions/add-user', {
@@ -160,6 +176,7 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
+
   const deleteEmployee = async (id) => {
     try {
       const { error } = await supabase.from('profiles').delete().eq('id', id);
@@ -171,6 +188,7 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
+
   const addSite = async () => {
     if (!newSiteName || !newSiteAddress) {
       setError('Please provide both site name and address');
@@ -197,6 +215,7 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
+
   const assignSites = async () => {
     try {
       const inserts = selectedSites.map(siteId => ({
@@ -218,6 +237,7 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
+
   const calculateDuration = (entry) => {
     if (!entry.end_date && !entry.clock_out_time) return 'Ongoing';
     if (!entry.start_date && !entry.clock_in_time) return 'Undated';
@@ -226,9 +246,11 @@ const AdminDashboard = ({ logout }) => {
     const diff = (end - start) / (1000 * 60 * 60); // hours
     return diff.toFixed(2) + ' hours';
   };
+
   const getSiteAssignments = (siteId) => {
     return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee.full_name || a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateDuration(a)})`).join('\n');
   };
+
   const sortSites = (sites, sortType) => {
     if (sortType === 'A-Z') {
       return [...sites].sort((a, b) => a.name.localeCompare(b.name));
@@ -237,11 +259,14 @@ const AdminDashboard = ({ logout }) => {
     }
     return sites; // Recent is default from DB order
   };
+
   const filteredSites = sites.filter(site =>
     site.name.toLowerCase().includes(siteSearch.toLowerCase()) ||
     site.address.toLowerCase().includes(siteSearch.toLowerCase())
   );
+
   const sortedSites = sortSites(filteredSites, siteSort);
+
   // Report calculations
   const getWorkedHours = (employeeId, siteId, startDate, endDate) => {
     const filteredEntries = timeEntries.filter(entry =>
@@ -259,6 +284,7 @@ const AdminDashboard = ({ logout }) => {
       return total;
     }, 0);
   };
+
   const getBudgetedHours = (employee, assignment, startDate, endDate) => {
     const assignStart = new Date(assignment.start_date || startDate);
     const assignEnd = new Date(assignment.end_date || endDate);
@@ -270,6 +296,7 @@ const AdminDashboard = ({ logout }) => {
     const days = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24));
     return days * (employee.work_hours || 8);
   };
+
   const getEfficiencyData = (employeeId) => {
     const employeeAssignments = assignments.filter(a => a.employee_id === employeeId);
     const data = employeeAssignments.map(a => {
@@ -288,6 +315,7 @@ const AdminDashboard = ({ logout }) => {
       }],
     };
   };
+
   const comparisonData = employees.flatMap(emp => {
     return assignments.filter(a => a.employee_id === emp.id).map(a => {
       const worked = getWorkedHours(emp.id, a.site_id, reportStart, reportEnd);
@@ -297,6 +325,7 @@ const AdminDashboard = ({ logout }) => {
       return { employee: emp.full_name || emp.username, site: a.site.name, worked, scheduled, variance, efficiency };
     });
   });
+
   const payrollData = sites.map(site => {
     const siteAssignments = assignments.filter(a => a.site_id === site.id);
     const siteEmployees = siteAssignments.map(a => {
@@ -308,6 +337,7 @@ const AdminDashboard = ({ logout }) => {
     }).filter(Boolean);
     return { site: site.name, employees: siteEmployees };
   }).filter(group => group.employees.length > 0);
+
   const exportToExcel = (data, fileName, sheetName, headers) => {
     const wb = XLSX.utils.book_new();
     const wsData = [headers, ...data];
@@ -317,6 +347,7 @@ const AdminDashboard = ({ logout }) => {
     const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
     saveAs(blob, fileName);
   };
+
   const exportComparison = () => {
     const data = comparisonData.map(row => [
       row.employee,
@@ -328,6 +359,7 @@ const AdminDashboard = ({ logout }) => {
     ]);
     exportToExcel(data, 'comparison.xlsx', 'Worked vs Scheduled', ['Employee', 'Site', 'Worked Hours', 'Scheduled Hours', 'Variance', 'Efficiency (%)']);
   };
+
   const exportTimelines = () => {
     const wb = XLSX.utils.book_new();
     employees.forEach(emp => {
@@ -343,6 +375,7 @@ const AdminDashboard = ({ logout }) => {
     const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
     saveAs(blob, 'timelines.xlsx');
   };
+
   const exportPayroll = () => {
     const wb = XLSX.utils.book_new();
     payrollData.forEach(group => {
@@ -357,146 +390,214 @@ const AdminDashboard = ({ logout }) => {
     const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
     saveAs(blob, 'payroll.xlsx');
   };
+
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <img src={jshLogo} alt="JSH Logo" style={{ maxHeight: '60px' }} />
+    <div className="p-5 max-w-7xl mx-auto bg-gray-100">
+      <div className="flex justify-end items-center mb-4 flex-wrap">
+        <img src={jshLogo} alt="JSH Logo" className="max-h-16" />
       </div>
-      <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Admin Dashboard</h1>
-      {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>
-        {error} <button onClick={refreshAll} style={{ background: '#4299e1', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Retry</button>
-      </div>}
-      {success && <div style={{ background: '#d4edda', color: '#155724', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{success}</div>}
-     
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Employee</h2>
-          <div style={{ width: '100%' }}>
-            <input type="text" placeholder="Full Name" value={newEmployeeName} onChange={e => setNewEmployeeName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
-          </div>
-          <div style={{ width: '100%' }}>
-            <input type="email" placeholder="Email" value={newEmployeeEmail} onChange={e => setNewEmployeeEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
-          </div>
-          <label style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-            <input type="checkbox" checked={newEmployeeIsAdmin} onChange={e => setNewEmployeeIsAdmin(e.target.value)} style={{ marginRight: '0.5rem' }} /> Admin
+      <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+      {error && (
+        <div className="bg-red-100 text-red-800 p-4 rounded-md mb-6">
+          {error} <button onClick={refreshAll} className="bg-blue-500 text-white px-2 py-1 rounded-md ml-4 hover:bg-blue-600">Retry</button>
+        </div>
+      )}
+      {success && <div className="bg-green-100 text-green-800 p-4 rounded-md mb-6">{success}</div>}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Add Employee</h2>
+          <input
+            type="text"
+            placeholder="Full Name"
+            value={newEmployeeName}
+            onChange={e => setNewEmployeeName(e.target.value)}
+            className="w-full p-3 mb-4 border border-gray-300 rounded-md"
+          />
+          <input
+            type="email"
+            placeholder="Email"
+            value={newEmployeeEmail}
+            onChange={e => setNewEmployeeEmail(e.target.value)}
+            className="w-full p-3 mb-4 border border-gray-300 rounded-md"
+          />
+          <label className="flex items-center mb-4">
+            <input type="checkbox" checked={newEmployeeIsAdmin} onChange={e => setNewEmployeeIsAdmin(e.target.checked)} className="mr-2" /> Admin
           </label>
-          <button onClick={addEmployee} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Employee</button>
+          <button onClick={addEmployee} className="w-full p-3 bg-blue-500 text-white rounded-md hover:bg-blue-600">Add Employee</button>
         </div>
-        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Site</h2>
-          <div style={{ width: '100%' }}>
-            <input type="text" placeholder="Site Name" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
-          </div>
-          <div style={{ width: '100%' }}>
-            <input type="text" placeholder="American Address (e.g., 123 Main St, City, State ZIP)" value={newSiteAddress} onChange={e => setNewSiteAddress(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
-          </div>
-          <button onClick={addSite} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Add Site</button>
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Add Site</h2>
+          <input
+            type="text"
+            placeholder="Site Name"
+            value={newSiteName}
+            onChange={e => setNewSiteName(e.target.value)}
+            className="w-full p-3 mb-4 border border-gray-300 rounded-md"
+          />
+          <input
+            type="text"
+            placeholder="American Address (e.g., 123 Main St, City, State ZIP)"
+            value={newSiteAddress}
+            onChange={e => setNewSiteAddress(e.target.value)}
+            className="w-full p-3 mb-4 border border-gray-300 rounded-md"
+          />
+          <button onClick={addSite} className="w-full p-3 bg-green-500 text-white rounded-md hover:bg-green-600">Add Site</button>
         </div>
-        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Assign Sites to Employee</h2>
-          <select value={selectedEmployee} onChange={e => setSelectedEmployee(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }}>
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Assign Sites to Employee</h2>
+          <select
+            value={selectedEmployee}
+            onChange={e => setSelectedEmployee(e.target.value)}
+            className="w-full p-3 mb-4 border border-gray-300 rounded-md"
+          >
             <option value="">Select Employee</option>
             {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.full_name || emp.username}</option>)}
           </select>
-          <input type="text" placeholder="Search Sites" value={siteSearch} onChange={e => setSiteSearch(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
-          <select value={siteSort} onChange={e => setSiteSort(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }}>
+          <input
+            type="text"
+            placeholder="Search Sites"
+            value={siteSearch}
+            onChange={e => setSiteSearch(e.target.value)}
+            className="w-full p-3 mb-4 border border-gray-300 rounded-md"
+          />
+          <select
+            value={siteSort}
+            onChange={e => setSiteSort(e.target.value)}
+            className="w-full p-3 mb-4 border border-gray-300 rounded-md"
+          >
             <option>Recent</option>
             <option>A-Z</option>
             <option>Z-A</option>
           </select>
-          <div style={{ marginBottom: '1rem' }}>
+          <div className="mb-4">
             {sortedSites.map(site => (
-              <label key={site.id} style={{ display: 'block', marginBottom: '0.5rem' }}>
-                <input type="checkbox" checked={selectedSites.includes(site.id)} onChange={() => {
-                  setSelectedSites(prev => prev.includes(site.id) ? prev.filter(s => s !== site.id) : [...prev, site.id]);
-                }} style={{ marginRight: '0.5rem' }} /> {site.name}
+              <label key={site.id} className="block mb-2">
+                <input
+                  type="checkbox"
+                  checked={selectedSites.includes(site.id)}
+                  onChange={() => {
+                    setSelectedSites(prev => prev.includes(site.id) ? prev.filter(s => s !== site.id) : [...prev, site.id]);
+                  }}
+                  className="mr-2"
+                /> {site.name}
               </label>
             ))}
           </div>
-          <div style={{ width: '100%', marginBottom: '1rem' }}>
-            <DatePicker selected={newAssignStart} onChange={date => setNewAssignStart(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="Start Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" />
-          </div>
-          <div style={{ width: '100%', marginBottom: '1rem' }}>
-            <DatePicker selected={newAssignEnd} onChange={date => setNewAssignEnd(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="End Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" />
-          </div>
-          <button onClick={assignSites} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Assign Sites</button>
+          <DatePicker
+            selected={newAssignStart}
+            onChange={date => setNewAssignStart(date)}
+            showTimeSelect
+            dateFormat="MMMM d, yyyy h:mm aa"
+            placeholderText="Start Date (optional)"
+            className="w-full p-3 mb-4 border border-gray-300 rounded-md"
+          />
+          <DatePicker
+            selected={newAssignEnd}
+            onChange={date => setNewAssignEnd(date)}
+            showTimeSelect
+            dateFormat="MMMM d, yyyy h:mm aa"
+            placeholderText="End Date (optional)"
+            className="w-full p-3 mb-4 border border-gray-300 rounded-md"
+          />
+          <button onClick={assignSites} className="w-full p-3 bg-blue-500 text-white rounded-md hover:bg-blue-600">Assign Sites</button>
         </div>
-        <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', gridColumn: '1 / -1' }}>
-          <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Employees</h2>
-          <ul style={{ listStyleType: 'none' }}>
+        <div className="bg-white p-6 rounded-lg shadow-md col-span-1 md:col-span-3">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Employees</h2>
+          <ul className="list-none">
             {employees.map(emp => (
-              <li key={emp.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <li key={emp.id} className="flex flex-col py-2 border-b border-gray-200">
+                <div className="flex justify-between items-center">
                   {emp.full_name ? `${emp.full_name} (${emp.username})` : emp.username} ({emp.role || 'Employee'})
-                  <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                  <button onClick={() => deleteEmployee(emp.id)} className="bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600">Delete</button>
                 </div>
-                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
-                  <span style={{ marginRight: '0.5rem' }}>Name:</span>
-                  <input type="text" defaultValue={emp.full_name || ''} onBlur={e => updateProfile(emp.id, 'full_name', e.target.value)} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem', flex: '1' }} />
-                  <span style={{ marginRight: '0.5rem' }}>Daily Work Hours:</span>
-                  <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => updateProfile(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
-                  <span style={{ marginRight: '0.5rem' }}>Start:</span>
-                  <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => updateProfile(emp.id, 'daily_start', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
-                  <span style={{ marginRight: '0.5rem' }}>End:</span>
-                  <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => updateProfile(emp.id, 'daily_end', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="mr-2">Name:</span>
+                  <input
+                    type="text"
+                    defaultValue={emp.full_name || ''}
+                    onBlur={e => updateProfile(emp.id, 'full_name', e.target.value)}
+                    className="p-1 border border-gray-300 rounded-md mr-4 flex-1"
+                  />
+                  <span className="mr-2">Daily Work Hours:</span>
+                  <input
+                    type="number"
+                    defaultValue={emp.work_hours || 8}
+                    onBlur={e => updateProfile(emp.id, 'work_hours', e.target.value)}
+                    className="w-16 p-1 border border-gray-300 rounded-md mr-4"
+                  />
+                  <span className="mr-2">Start:</span>
+                  <input
+                    type="time"
+                    defaultValue={emp.daily_start || '09:00'}
+                    onBlur={e => updateProfile(emp.id, 'daily_start', e.target.value + ':00')}
+                    className="p-1 border border-gray-300 rounded-md mr-4"
+                  />
+                  <span className="mr-2">End:</span>
+                  <input
+                    type="time"
+                    defaultValue={emp.daily_end || '17:00'}
+                    onBlur={e => updateProfile(emp.id, 'daily_end', e.target.value + ':00')}
+                    className="p-1 border border-gray-300 rounded-md"
+                  />
                 </div>
               </li>
             ))}
           </ul>
         </div>
       </div>
-      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Employee Assignments</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Employee Assignments</h2>
+        <table className="w-full border-collapse">
           <thead>
-            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Start</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>End</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Duration</th>
+            <tr className="border-b-2 border-gray-200">
+              <th className="text-left p-2">Employee</th>
+              <th className="text-left p-2">Site</th>
+              <th className="text-left p-2">Start</th>
+              <th className="text-left p-2">End</th>
+              <th className="text-left p-2">Duration</th>
             </tr>
           </thead>
           <tbody>
             {assignments.map((assign, index) => (
-              <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '0.5rem' }}>{assign.employee?.full_name || assign.employee?.username || 'Unknown'}</td>
-                <td style={{ padding: '0.5rem' }}>{assign.site?.name || 'Unknown'}</td>
-                <td style={{ padding: '0.5rem' }}>{assign.start_date ? new Date(assign.start_date).toLocaleString() : 'N/A'}</td>
-                <td style={{ padding: '0.5rem' }}>{assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A'}</td>
-                <td style={{ padding: '0.5rem' }}>{calculateDuration(assign)}</td>
+              <tr key={index} className="border-b border-gray-200">
+                <td className="p-2">{assign.employee?.full_name || assign.employee?.username || 'Unknown'}</td>
+                <td className="p-2">{assign.site?.name || 'Unknown'}</td>
+                <td className="p-2">{assign.start_date ? new Date(assign.start_date).toLocaleString() : 'N/A'}</td>
+                <td className="p-2">{assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A'}</td>
+                <td className="p-2">{calculateDuration(assign)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Time Entries</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Time Entries</h2>
+        <table className="w-full border-collapse">
           <thead>
-            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Clock In</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Clock Out</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Duration</th>
+            <tr className="border-b-2 border-gray-200">
+              <th className="text-left p-2">Employee</th>
+              <th className="text-left p-2">Site</th>
+              <th className="text-left p-2">Clock In</th>
+              <th className="text-left p-2">Clock Out</th>
+              <th className="text-left p-2">Duration</th>
             </tr>
           </thead>
           <tbody>
             {timeEntries.map((entry, index) => (
-              <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '0.5rem' }}>{entry.employee?.full_name || entry.employee?.username || 'Unknown'}</td>
-                <td style={{ padding: '0.5rem' }}>{entry.site?.name || 'Unknown'}</td>
-                <td style={{ padding: '0.5rem' }}>{new Date(entry.clock_in_time).toLocaleString()}</td>
-                <td style={{ padding: '0.5rem' }}>{entry.clock_out_time ? new Date(entry.clock_out_time).toLocaleString() : 'N/A'}</td>
-                <td style={{ padding: '0.5rem' }}>{calculateDuration(entry)}</td>
+              <tr key={index} className="border-b border-gray-200">
+                <td className="p-2">{entry.employee?.full_name || entry.employee?.username || 'Unknown'}</td>
+                <td className="p-2">{entry.site?.name || 'Unknown'}</td>
+                <td className="p-2">{new Date(entry.clock_in_time).toLocaleString()}</td>
+                <td className="p-2">{entry.clock_out_time ? new Date(entry.clock_out_time).toLocaleString() : 'N/A'}</td>
+                <td className="p-2">{calculateDuration(entry)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites Map</h2>
+      <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Sites Map</h2>
         <MapContainer center={[37.0902, -95.7129]} zoom={4} style={{ height: '400px', width: '100%' }}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <MapBounds sites={sites} />
@@ -511,47 +612,47 @@ const AdminDashboard = ({ logout }) => {
           ))}
         </MapContainer>
       </div>
-      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Reports</h2>
-        <div style={{ display: 'flex', marginBottom: '1rem' }}>
-          <div style={{ marginRight: '1rem' }}>
+      <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Reports</h2>
+        <div className="flex mb-4">
+          <div className="mr-4">
             <DatePicker selected={reportStart} onChange={date => setReportStart(date)} dateFormat="MMMM d, yyyy" placeholderText="Start Date" className="p-2 border border-gray-300 rounded-md" />
           </div>
           <div>
             <DatePicker selected={reportEnd} onChange={date => setReportEnd(date)} dateFormat="MMMM d, yyyy" placeholderText="End Date" className="p-2 border border-gray-300 rounded-md" />
           </div>
         </div>
-        {(!reportStart || !reportEnd) && <p style={{ color: '#9b2c2c', marginBottom: '1rem' }}>Please select a date range to view reports.</p>}
+        {(!reportStart || !reportEnd) && <p className="text-red-800 mb-4">Please select a date range to view reports.</p>}
         {reportStart && reportEnd && (
-          <div style={{ display: 'flex', marginBottom: '1rem' }}>
-            <button onClick={() => setReportTab('comparison')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'comparison' ? '#4299e1' : '#e2e8f0', color: reportTab === 'comparison' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Worked vs Scheduled</button>
-            <button onClick={() => setReportTab('timelines')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'timelines' ? '#4299e1' : '#e2e8f0', color: reportTab === 'timelines' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Efficiency Timelines</button>
-            <button onClick={() => setReportTab('payroll')} style={{ padding: '0.5rem 1rem', background: reportTab === 'payroll' ? '#4299e1' : '#e2e8f0', color: reportTab === 'payroll' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Payroll Report</button>
+          <div className="flex mb-4">
+            <button onClick={() => setReportTab('comparison')} className={`mr-4 px-4 py-2 rounded-md ${reportTab === 'comparison' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} hover:bg-blue-600 hover:text-white`}>Worked vs Scheduled</button>
+            <button onClick={() => setReportTab('timelines')} className={`mr-4 px-4 py-2 rounded-md ${reportTab === 'timelines' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} hover:bg-blue-600 hover:text-white`}>Efficiency Timelines</button>
+            <button onClick={() => setReportTab('payroll')} className={`px-4 py-2 rounded-md ${reportTab === 'payroll' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} hover:bg-blue-600 hover:text-white`}>Payroll Report</button>
           </div>
         )}
         {reportStart && reportEnd && reportTab === 'comparison' && (
           <>
-            <button onClick={exportComparison} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <button onClick={exportComparison} className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 mb-4">Export to Excel</button>
+            <table className="w-full border-collapse">
               <thead>
-                <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Worked Hours</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Scheduled Hours</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Variance</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Efficiency (%)</th>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="text-left p-2">Employee</th>
+                  <th className="text-left p-2">Site</th>
+                  <th className="text-left p-2">Worked Hours</th>
+                  <th className="text-left p-2">Scheduled Hours</th>
+                  <th className="text-left p-2">Variance</th>
+                  <th className="text-left p-2">Efficiency (%)</th>
                 </tr>
               </thead>
               <tbody>
                 {comparisonData.map((row, index) => (
-                  <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '0.5rem' }}>{row.employee}</td>
-                    <td style={{ padding: '0.5rem' }}>{row.site}</td>
-                    <td style={{ padding: '0.5rem' }}>{row.worked.toFixed(2)}</td>
-                    <td style={{ padding: '0.5rem' }}>{row.scheduled.toFixed(2)}</td>
-                    <td style={{ padding: '0.5rem' }}>{row.variance.toFixed(2)}</td>
-                    <td style={{ padding: '0.5rem' }}>{row.efficiency}%</td>
+                  <tr key={index} className="border-b border-gray-200">
+                    <td className="p-2">{row.employee}</td>
+                    <td className="p-2">{row.site}</td>
+                    <td className="p-2">{row.worked.toFixed(2)}</td>
+                    <td className="p-2">{row.scheduled.toFixed(2)}</td>
+                    <td className="p-2">{row.variance.toFixed(2)}</td>
+                    <td className="p-2">{row.efficiency}%</td>
                   </tr>
                 ))}
               </tbody>
@@ -560,10 +661,10 @@ const AdminDashboard = ({ logout }) => {
         )}
         {reportStart && reportEnd && reportTab === 'timelines' && (
           <>
-            <button onClick={exportTimelines} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
+            <button onClick={exportTimelines} className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 mb-4">Export to Excel</button>
             {employees.map(emp => (
-              <div key={emp.id} style={{ marginBottom: '2rem' }}>
-                <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>{emp.full_name || emp.username} Efficiency Timeline</h3>
+              <div key={emp.id} className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">{emp.full_name || emp.username} Efficiency Timeline</h3>
                 <Line data={getEfficiencyData(emp.id)} options={{ responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Efficiency Over Assignments' } } }} />
               </div>
             ))}
@@ -571,24 +672,24 @@ const AdminDashboard = ({ logout }) => {
         )}
         {reportStart && reportEnd && reportTab === 'payroll' && (
           <>
-            <button onClick={exportPayroll} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
+            <button onClick={exportPayroll} className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 mb-4">Export to Excel</button>
             {payrollData.map((group, groupIndex) => (
-              <div key={groupIndex} style={{ marginBottom: '1rem' }}>
-                <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600' }}>{group.site}</h3>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div key={groupIndex} className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">{group.site}</h3>
+                <table className="w-full border-collapse">
                   <thead>
-                    <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                      <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
-                      <th style={{ textAlign: 'left', padding: '0.5rem' }}>Budgeted Hours</th>
-                      <th style={{ textAlign: 'left', padding: '0.5rem' }}>Logged Hours</th>
+                    <tr className="border-b-2 border-gray-200">
+                      <th className="text-left p-2">Employee</th>
+                      <th className="text-left p-2">Budgeted Hours</th>
+                      <th className="text-left p-2">Logged Hours</th>
                     </tr>
                   </thead>
                   <tbody>
                     {group.employees.map((emp, empIndex) => (
-                      <tr key={empIndex} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '0.5rem' }}>{emp.employee}</td>
-                        <td style={{ padding: '0.5rem' }}>{emp.budgeted.toFixed(2)}</td>
-                        <td style={{ padding: '0.5rem' }}>{emp.logged.toFixed(2)}</td>
+                      <tr key={empIndex} className="border-b border-gray-200">
+                        <td className="p-2">{emp.employee}</td>
+                        <td className="p-2">{emp.budgeted.toFixed(2)}</td>
+                        <td className="p-2">{emp.logged.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -598,8 +699,9 @@ const AdminDashboard = ({ logout }) => {
           </>
         )}
       </div>
-      <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
+      <button onClick={logout} className="mt-6 bg-red-500 text-white p-3 rounded-md hover:bg-red-600">Logout</button>
     </div>
   );
 };
+
 export default AdminDashboard;
