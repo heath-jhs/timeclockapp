@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { SessionContextProvider } from '@supabase/auth-helpers-react';
-import { supabaseClient } from './lib/supabase'; // Adjust if your singleton is in src/lib/supabase.js
+import { SessionContextProvider, useUser } from '@supabase/auth-helpers-react';
+import { supabaseClient } from './lib/supabase';
 import Login from './pages/Login';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import Settings from './pages/Settings';
@@ -9,7 +9,7 @@ import EmployeeSettings from './pages/EmployeeSettings';
 import InviteSetup from './pages/InviteSetup';
 import Profile from './pages/Profile';
 import EmployeeSplash from './pages/EmployeeSplash';
-import AdminDashboard from './components/AdminDashboard'; // Correct path
+import AdminDashboard from './components/AdminDashboard';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -30,10 +30,28 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+function ProtectedRoute({ component: Component, isAdmin = false }) {
+  const user = useUser();
+  const [role, setRole] = useState(null);
+
+  useEffect(() => {
+    if (user) {
+      supabaseClient.from('profiles').select('role').eq('id', user.id).single().then(({ data }) => {
+        setRole(data?.role);
+      });
+    }
+  }, [user]);
+
+  if (!user) return <Navigate to="/login" />;
+  if (role === null) return <div className="p-4">Loading...</div>;
+  if (isAdmin && role !== 'Admin') return <Navigate to="/dashboard" />;
+  if (!isAdmin && role === 'Admin') return <Navigate to="/admin" />;
+  return <Component />;
+}
+
 function App() {
   const [session, setSession] = useState(null);
   useEffect(() => {
-    // Optional session listener for debugging
     const { data: listener } = supabaseClient.auth.onAuthStateChange((event, session) => {
       setSession(session);
     });
@@ -45,13 +63,13 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/dashboard" element={<EmployeeDashboard />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/employee-settings" element={<EmployeeSettings />} />
             <Route path="/invite" element={<InviteSetup />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/employee" element={<EmployeeSplash />} />
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/dashboard" element={<ProtectedRoute component={EmployeeDashboard} />} />
+            <Route path="/settings" element={<ProtectedRoute component={Settings} />} />
+            <Route path="/employee-settings" element={<ProtectedRoute component={EmployeeSettings} />} />
+            <Route path="/profile" element={<ProtectedRoute component={Profile} />} />
+            <Route path="/employee" element={<ProtectedRoute component={EmployeeSplash} />} />
+            <Route path="/admin" element={<ProtectedRoute component={AdminDashboard} isAdmin={true} />} />
             <Route path="/" element={<Navigate to="/login" />} />
           </Routes>
         </Router>
