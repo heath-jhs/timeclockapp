@@ -1,3 +1,4 @@
+// src/components/AdminDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
@@ -21,7 +22,6 @@ import {
   Legend,
 } from 'chart.js';
 import * as XLSX from 'xlsx';
-
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -31,14 +31,12 @@ ChartJS.register(
   Tooltip,
   Legend
 );
-
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
 });
-
 const MapBounds = ({ sites }) => {
   const map = useMap();
   useEffect(() => {
@@ -50,7 +48,6 @@ const MapBounds = ({ sites }) => {
   }, [sites, map]);
   return null;
 };
-
 const AdminDashboard = ({ logout }) => {
   const [employees, setEmployees] = useState([]);
   const [sites, setSites] = useState([]);
@@ -72,9 +69,7 @@ const AdminDashboard = ({ logout }) => {
   const [reportTab, setReportTab] = useState('comparison');
   const [reportStart, setReportStart] = useState(new Date(new Date().setDate(new Date().getDate() - 30))); // Default last 30 days
   const [reportEnd, setReportEnd] = useState(new Date());
-
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
-
   const refreshAll = async () => {
     setError(null);
     await Promise.all([
@@ -84,18 +79,15 @@ const AdminDashboard = ({ logout }) => {
       fetchTimeEntries()
     ]);
   };
-
   useEffect(() => {
     refreshAll();
   }, []);
-
   useEffect(() => {
     if (success) {
       const timer = setTimeout(() => setSuccess(null), 3000);
       return () => clearTimeout(timer);
     }
   }, [success]);
-
   const fetchEmployees = async () => {
     try {
       const { data, error } = await supabase.from('profiles').select('*');
@@ -105,7 +97,6 @@ const AdminDashboard = ({ logout }) => {
       setError('Employees fetch failed: ' + err.message);
     }
   };
-
   const fetchSites = async () => {
     try {
       const { data, error } = await supabase.from('sites').select('*').order('created_at', { ascending: false });
@@ -115,12 +106,11 @@ const AdminDashboard = ({ logout }) => {
       setError('Sites fetch failed: ' + err.message);
     }
   };
-
   const fetchAssignments = async () => {
     try {
       const { data, error } = await supabase
         .from('employee_sites')
-        .select('*, employee:employee_id ( username, full_name ), site:site_id ( name )')
+        .select('*, employee:profiles(full_name, username), sites!inner(name)')
         .order('start_date', { ascending: false });
       if (error) throw error;
       setAssignments(data);
@@ -128,12 +118,11 @@ const AdminDashboard = ({ logout }) => {
       setError('Assignments fetch failed: ' + err.message);
     }
   };
-
   const fetchTimeEntries = async () => {
     try {
       const { data, error } = await supabase
         .from('time_entries')
-        .select('*, employee:employee_id ( username, full_name ), site:site_id ( name )')
+        .select('*, employee:profiles(full_name, username), sites!inner(name)')
         .order('clock_in_time', { ascending: false });
       if (error) throw error;
       setTimeEntries(data);
@@ -141,7 +130,6 @@ const AdminDashboard = ({ logout }) => {
       setError('Time entries fetch failed: ' + err.message);
     }
   };
-
   const updateProfile = async (id, field, value) => {
     try {
       const { error } = await supabase.from('profiles').update({ [field]: value }).eq('id', id);
@@ -151,7 +139,6 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
-
   const addEmployee = async () => {
     try {
       const response = await fetch('/.netlify/functions/add-user', {
@@ -172,7 +159,6 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
-
   const deleteEmployee = async (id) => {
     try {
       const { error } = await supabase.from('profiles').delete().eq('id', id);
@@ -184,7 +170,6 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
-
   const addSite = async () => {
     if (!newSiteName || !newSiteAddress) {
       setError('Please provide both site name and address');
@@ -211,14 +196,13 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
-
   const assignSites = async () => {
     try {
-      const inserts = selectedSites.map(siteId => ({ 
-        employee_id: selectedEmployee, 
-        site_id: siteId, 
+      const inserts = selectedSites.map(siteId => ({
+        employee_id: selectedEmployee,
+        site_id: siteId,
         start_date: newAssignStart ? new Date(newAssignStart).toISOString() : null,
-        end_date: newAssignEnd ? new Date(newAssignEnd).toISOString() : null 
+        end_date: newAssignEnd ? new Date(newAssignEnd).toISOString() : null
       }));
       const { error } = await supabase.from('employee_sites').insert(inserts);
       if (error) throw error;
@@ -233,7 +217,6 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
-
   const calculateDuration = (entry) => {
     if (!entry.end_date && !entry.clock_out_time) return 'Ongoing';
     if (!entry.start_date && !entry.clock_in_time) return 'Undated';
@@ -242,11 +225,9 @@ const AdminDashboard = ({ logout }) => {
     const diff = (end - start) / (1000 * 60 * 60); // hours
     return diff.toFixed(2) + ' hours';
   };
-
   const getSiteAssignments = (siteId) => {
     return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee.full_name || a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateDuration(a)})`).join('\n');
   };
-
   const sortSites = (sites, sortType) => {
     if (sortType === 'A-Z') {
       return [...sites].sort((a, b) => a.name.localeCompare(b.name));
@@ -255,20 +236,17 @@ const AdminDashboard = ({ logout }) => {
     }
     return sites; // Recent is default from DB order
   };
-
-  const filteredSites = sites.filter(site => 
-    site.name.toLowerCase().includes(siteSearch.toLowerCase()) || 
+  const filteredSites = sites.filter(site =>
+    site.name.toLowerCase().includes(siteSearch.toLowerCase()) ||
     site.address.toLowerCase().includes(siteSearch.toLowerCase())
   );
-
   const sortedSites = sortSites(filteredSites, siteSort);
-
   // Report calculations
   const getWorkedHours = (employeeId, siteId, startDate, endDate) => {
-    const filteredEntries = timeEntries.filter(entry => 
-      entry.employee_id === employeeId && 
-      entry.site_id === siteId && 
-      new Date(entry.clock_in_time) >= startDate && 
+    const filteredEntries = timeEntries.filter(entry =>
+      entry.employee_id === employeeId &&
+      entry.site_id === siteId &&
+      new Date(entry.clock_in_time) >= startDate &&
       new Date(entry.clock_in_time) <= endDate
     );
     return filteredEntries.reduce((total, entry) => {
@@ -280,7 +258,6 @@ const AdminDashboard = ({ logout }) => {
       return total;
     }, 0);
   };
-
   const getBudgetedHours = (employee, assignment, startDate, endDate) => {
     const assignStart = new Date(assignment.start_date || startDate);
     const assignEnd = new Date(assignment.end_date || endDate);
@@ -292,7 +269,6 @@ const AdminDashboard = ({ logout }) => {
     const days = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24));
     return days * (employee.work_hours || 8);
   };
-
   const getEfficiencyData = (employeeId) => {
     const employeeAssignments = assignments.filter(a => a.employee_id === employeeId);
     const data = employeeAssignments.map(a => {
@@ -311,7 +287,6 @@ const AdminDashboard = ({ logout }) => {
       }],
     };
   };
-
   const comparisonData = employees.flatMap(emp => {
     return assignments.filter(a => a.employee_id === emp.id).map(a => {
       const worked = getWorkedHours(emp.id, a.site_id, reportStart, reportEnd);
@@ -321,7 +296,6 @@ const AdminDashboard = ({ logout }) => {
       return { employee: emp.full_name || emp.username, site: a.site.name, worked, scheduled, variance, efficiency };
     });
   });
-
   const payrollData = sites.map(site => {
     const siteAssignments = assignments.filter(a => a.site_id === site.id);
     const siteEmployees = siteAssignments.map(a => {
@@ -333,7 +307,6 @@ const AdminDashboard = ({ logout }) => {
     }).filter(Boolean);
     return { site: site.name, employees: siteEmployees };
   }).filter(group => group.employees.length > 0);
-
   const exportToExcel = (data, fileName, sheetName, headers) => {
     const wb = XLSX.utils.book_new();
     const wsData = [headers, ...data];
@@ -341,7 +314,6 @@ const AdminDashboard = ({ logout }) => {
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
     XLSX.writeFile(wb, fileName);
   };
-
   const exportComparison = () => {
     const data = comparisonData.map(row => [
       row.employee,
@@ -353,7 +325,6 @@ const AdminDashboard = ({ logout }) => {
     ]);
     exportToExcel(data, 'comparison.xlsx', 'Worked vs Scheduled', ['Employee', 'Site', 'Worked Hours', 'Scheduled Hours', 'Variance', 'Efficiency (%)']);
   };
-
   const exportTimelines = () => {
     const wb = XLSX.utils.book_new();
     employees.forEach(emp => {
@@ -367,7 +338,6 @@ const AdminDashboard = ({ logout }) => {
     });
     XLSX.writeFile(wb, 'timelines.xlsx');
   };
-
   const exportPayroll = () => {
     const wb = XLSX.utils.book_new();
     payrollData.forEach(group => {
@@ -380,7 +350,6 @@ const AdminDashboard = ({ logout }) => {
     });
     XLSX.writeFile(wb, 'payroll.xlsx');
   };
-
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
@@ -391,7 +360,7 @@ const AdminDashboard = ({ logout }) => {
         {error} <button onClick={refreshAll} style={{ background: '#4299e1', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Retry</button>
       </div>}
       {success && <div style={{ background: '#d4edda', color: '#155724', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{success}</div>}
-      
+     
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Employee</h2>
@@ -626,5 +595,4 @@ const AdminDashboard = ({ logout }) => {
     </div>
   );
 };
-
 export default AdminDashboard;
