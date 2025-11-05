@@ -1,47 +1,39 @@
 // src/App.jsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { createBrowserSupabaseClient } from '@supabase/auth-helpers-react';
-import { SessionContextProvider } from '@supabase/auth-helpers-react';
+import { createBrowserSupabaseClient } from '@supabase/supabase-js';
+import { SessionContextProvider, useSession } from '@supabase/auth-helpers-react';
 
-const supabase = createBrowserSupabaseClient({
-  supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-  supabaseKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-});
+// Create Supabase client
+const supabase = createBrowserSupabaseClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 export { supabase };
 
-// Auth helpers (plain JS)
+// Auth Guards
 function RequireAuth({ children }) {
-  const { session, isLoading } = supabase.auth.useSession();
-  if (isLoading) return <div style={{ padding: 20, textAlign: 'center' }}>Loading…</div>;
-  return session ? children : <Navigate to="/login" replace />;
-}
-
-function RequireRole({ role, children }) {
-  const { session, isLoading } = supabase.auth.useSession();
-  if (isLoading) return <div style={{ padding: 20, textAlign: 'center' }}>Loading…</div>;
+  const session = useSession();
   if (!session) return <Navigate to="/login" replace />;
-
-  const userRole =
-    session.user?.user_metadata?.role ??
-    session.user?.app_metadata?.role ??
-    null;
-
-  if (userRole !== role) {
-    const redirectTo = userRole === 'admin' ? '/admin' : '/employee';
-    return <Navigate to={redirectTo} replace />;
-  }
-
   return children;
 }
 
-// Imports – respecting your existing components structure
-import Login from './components/auth/Login';  // ← YOUR EXISTING/RESTORED LOGIN
-import InviteSetup from './pages/InviteSetup';  // Create if missing (from earlier)
-import EmployeeSplash from './pages/EmployeeSplash';  // You have this
-import EmployeeSettings from './pages/EmployeeSettings';  // Stub if needed
+function RequireRole({ role, children }) {
+  const session = useSession();
+  if (!session) return <Navigate to="/login" replace />;
 
-// Admin – assuming your existing in components (adjust if wrong)
+  const userRole = session.user?.user_metadata?.role || null;
+  if (userRole !== role) {
+    return <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} replace />;
+  }
+  return children;
+}
+
+// Your existing components
+import Login from './components/auth/Login';
+import InviteSetup from './pages/InviteSetup';
+import EmployeeSplash from './pages/EmployeeSplash';
+import EmployeeSettings from './pages/EmployeeSettings';
 import AdminDashboard from './components/AdminDashboard';
 import AdminSites from './components/AdminSites';
 import AdminEmployees from './components/AdminEmployees';
