@@ -1,90 +1,131 @@
-import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import AdminDashboard from './components/AdminDashboard';
-import EmployeeDashboard from './components/EmployeeDashboard';
+// src/App.jsx
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { SupabaseProvider } from '@supabase/auth-helpers-react';
+import { supabase } from './supabaseClient';   // <-- your client export
 
-const App = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [user, setUser] = useState(null);
-  const [error, setError] = useState(null);
-  const [appError, setAppError] = useState(null);
+import Login from './pages/Login';
+import InviteSetup from './pages/InviteSetup';
+import EmployeeSplash from './pages/EmployeeSplash';
+import EmployeeSettings from './pages/EmployeeSettings';
 
-  const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminSites from './pages/admin/AdminSites';
+import AdminEmployees from './pages/admin/AdminEmployees';
+import AdminReports from './pages/admin/AdminReports';
 
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const { data: { user } } = await supabase.auth.getUser();
-          setUser(user);
-        }
-      } catch (err) {
-        console.error('Session error:', err);
-        setAppError(err.message);
-      }
-    };
-    checkSession();
-  }, []);
+// ---------------------------------------------------------------------
+// Helper: redirect if NOT logged in
+// ---------------------------------------------------------------------
+function RequireAuth({ children }) {
+  const { data: { session }, isLoading } = supabase.auth.useSession();
 
-  const login = async () => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      // Force refresh to load app_metadata
-      const { data: refreshed } = await supabase.auth.getUser();
-      setUser(refreshed.user);
-      console.log('User app_metadata:', refreshed.user.app_metadata); // Debug log
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+  if (isLoading) return <div style={{ padding: 20 }}>Loading…</div>;
+  return session ? children : <Navigate to="/login" replace />;
+}
 
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-    } catch (err) {
-      console.error('Logout error:', err);
-      setAppError(err.message);
-    }
-  };
+// ---------------------------------------------------------------------
+// Helper: redirect if user does NOT have required role
+// ---------------------------------------------------------------------
+function RequireRole({ role, children }) {
+  const { data: { session }, isLoading } = supabase.auth.useSession();
 
-  if (appError) {
-    return (
-      <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto' }}>
-        <h1>App Error</h1>
-        <p style={{ color: 'red' }}>{appError}</p>
-        <button onClick={() => window.location.reload()}>Retry</button>
-      </div>
-    );
+  if (isLoading) return <div style={{ padding: 20 }}>Loading…</div>;
+
+  if (!session) return <Navigate to="/login" replace />;
+
+  // Role is stored in profiles.role (employee | admin)
+  const userRole = session.user?.user_metadata?.role
+    ?? session.user?.app_metadata?.role
+    ?? null;
+
+  if (userRole !== role) {
+    return <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} replace />;
   }
 
-  if (!user) {
-    return (
-      <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto', background: '#f8f9fa' }}>
-        <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Login</h1>
-        {error && <p style={{ color: '#9b2c2c', background: '#fed7d7', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem' }}>{error}</p>}
-        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
-        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem' }} />
-        <button onClick={login} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Login</button>
-      </div>
-    );
-  }
+  return children;
+}
 
-  const role = user.app_metadata?.role || 'Employee';
-
+// ---------------------------------------------------------------------
+// Main App
+// ---------------------------------------------------------------------
+export default function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={role === 'Admin' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </Router>
-  );
-};
+    <SupabaseProvider client={supabase}>
+      <BrowserRouter>
+        <Routes>
 
-export default App;
+          {/* ------------------ Public ------------------ */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/invite" element={<InviteSetup />} />
+
+          {/* ------------------ Employee ------------------ */}
+          <Route
+            path="/employee"
+            element={
+              <RequireAuth>
+                <RequireRole role="employee">
+                  <EmployeeSplash />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/employee/settings"
+            element={
+              <RequireAuth>
+                <RequireRole role="employee">
+                  <EmployeeSettings />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+
+          {/* ------------------ Admin ------------------ */}
+          <Route
+            path="/admin"
+            element={
+              <RequireAuth>
+                <RequireRole role="admin">
+                  <AdminDashboard />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/admin/sites"
+            element={
+              <RequireAuth>
+                <RequireRole role="admin">
+                  <AdminSites />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/admin/employees"
+            element={
+              <RequireAuth>
+                <RequireRole role="admin">
+                  <AdminEmployees />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <RequireAuth>
+                <RequireRole role="admin">
+                  <AdminReports />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
+
+          {/* ------------------ Catch-all ------------------ */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </SupabaseProvider>
+  );
+}
