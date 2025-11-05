@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import { useNavigate } from 'react-router-dom';
 import { format, isToday, isTomorrow } from 'date-fns';
 
@@ -7,13 +7,14 @@ export default function EmployeeDashboard() {
   const [schedule, setSchedule] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const supabase = useSupabaseClient();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30000); // refresh every 30s
     return () => clearInterval(interval);
-  }, []);
+  }, [supabase]);
 
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
