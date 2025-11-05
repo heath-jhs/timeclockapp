@@ -17,49 +17,36 @@ export default function InviteSetup() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!token) {
-      setError('Invalid invite link.');
-      setLoading(false);
-      return;
-    }
+    if (!token) return setError('Invalid invite link'), setLoading(false);
 
-    supabase
-      .from('invites')
-      .select('email, name_pre_fill')
-      .eq('token', token)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) {
-          setError('Invalid or expired invite.');
-        } else {
-          setEmail(data.email);
-          setFullName(data.name_pre_fill || '');
-        }
-        setLoading(false);
-      });
+    // Validate token using Supabase Auth invite flow
+    supabase.auth.getUser(token).then(({ data, error }) => {
+      if (error || !data.user) {
+        setError('Invalid or expired invite');
+      } else {
+        setEmail(data.user.email);
+        setFullName(data.user.user_metadata.full_name || '');
+      }
+      setLoading(false);
+    });
   }, [token, supabase]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (password !== confirm) return setError('Passwords do not match.');
-    if (!fullName) return setError('Name is required.');
+    if (password !== confirm) return setError('Passwords do not match');
+    if (!fullName) return setError('Name required');
 
-    const { error } = await supabase.auth.signUp({
-      email,
+    const { error } = await supabase.auth.updateUser({
       password,
-      options: { data: { full_name: fullName, role: 'employee' } }
+      data: { full_name: fullName }
     });
 
-    if (error) {
-      setError(error.message);
-      return;
-    }
+    if (error) return setError(error.message);
 
-    await supabase.from('invites').delete().eq('token', token);
     navigate('/employee');
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading…</div>;
+  if (loading) return <div style={{ padding: 40 }}>Loading invite…</div>;
   if (error && !email) return <div style={{ padding: 40, color: 'red' }}>{error}</div>;
 
   return (
