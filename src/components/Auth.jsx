@@ -12,7 +12,30 @@ const Auth = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already logged in
+  // Handle confirmation from email link on load
+  useEffect(() => {
+    const handleConfirmation = async () => {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      const type = params.get('type');
+
+      if (type === 'signup' && accessToken && refreshToken) {
+        try {
+          const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (error) throw error;
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) await checkAndRedirect(user.id);
+        } catch (err) {
+          setError(err.message || 'Confirmation failed');
+        }
+      }
+    };
+    handleConfirmation();
+  }, []);
+
+  // Redirect if logged in
   useEffect(() => {
     if (user) {
       checkAndRedirect(user.id);
@@ -20,11 +43,12 @@ const Auth = () => {
   }, [user]);
 
   const checkAndRedirect = async (userId) => {
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
-    if (profile.role === 'Admin') {
-      navigate('/admin-dashboard'); // Or your admin path
+    const { data: profile } = await supabase.from('profiles').select('role, is_admin').eq('id', userId).single();
+    const isAdmin = profile.is_admin || profile.role === 'Admin';
+    if (isAdmin) {
+      navigate('/admin-dashboard');
     } else {
-      navigate('/employee-dashboard'); // Or your employee path
+      navigate('/employee-dashboard');
     }
   };
 
