@@ -433,11 +433,7 @@ const AdminDashboard = ({ logout }) => {
             <DatePicker selected={newAssignStart} onChange={date => setNewAssignStart(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="Start Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" popperClassName="z-50" />
           </div>
           <div style={{ width: '100%', marginBottom: '1rem' }}>
-            <DatePicker selected={newAssignEnd} onChange={date => {
-              const endOfDay = new Date(date);
-              endOfDay.setHours(23, 59, 59, 999);
-              setNewAssignEnd(endOfDay);
-            }} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="End Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" popperClassName="z-50" />
+            <DatePicker selected={newAssignEnd} onChange={date => setNewAssignEnd(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="End Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" popperClassName="z-50" />
           </div>
           <button onClick={assignSites} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>Assign Sites</button>
         </div>
@@ -535,11 +531,7 @@ const AdminDashboard = ({ logout }) => {
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Reports</h2>
         <div style={{ display: 'flex', marginBottom: '1rem' }}>
           <div style={{ marginRight: '1rem' }}>
-            <DatePicker selected={reportStart} onChange={date => {
-              const startOfDay = new Date(date);
-              startOfDay.setHours(0, 0, 0, 0);
-              setReportStart(startOfDay);
-            }} dateFormat="MMMM d, yyyy" placeholderText="Start Date" className="p-2 border border-gray-300 rounded-md" popperClassName="z-50" />
+            <DatePicker selected={reportStart} onChange={date => setReportStart(date)} dateFormat="MMMM d, yyyy" placeholderText="Start Date" className="p-2 border border-gray-300 rounded-md" popperClassName="z-50" />
           </div>
           <div>
             <DatePicker selected={reportEnd} onChange={date => {
