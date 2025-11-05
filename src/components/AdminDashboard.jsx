@@ -9,7 +9,6 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import jshLogo from '../assets/jsh-logo.png';
-import companyText from '../assets/company-text.png';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -241,9 +240,8 @@ const AdminDashboard = ({ logout }) => {
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-        <img src={jshLogo} alt="JSH Logo" style={{ height: '50px', marginRight: '10px' }} />
-        <img src={companyText} alt="J.H. Strickland Construction, LLC" style={{ height: '30px' }} />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <img src={jshLogo} alt="JSH Logo" style={{ maxHeight: '60px' }} />
       </div>
       <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Admin Dashboard</h1>
       {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>
