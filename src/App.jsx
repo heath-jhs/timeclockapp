@@ -1,103 +1,38 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { createClient } from '@supabase/supabase-js';
-import { SessionContextProvider, useSession } from '@supabase/auth-helpers-react';
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
-
-export { supabase };
-
-function RequireAuth({ children }) {
-  const session = useSession();
-  if (!session) return <Navigate to="/login" replace />;
-  return children;
-}
-
-function RequireRole({ role, children }) {
-  const session = useSession();
-  if (!session) return <Navigate to="/login" replace />;
-
-  const userRole = session.user?.user_metadata?.role || null;
-  if (userRole !== role) {
-    return <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} replace />;
-  }
-  return children;
-}
-
-// YOUR FILES
+import { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { SessionContextProvider } from '@supabase/auth-helpers-react';
+import { supabaseClient } from './lib/supabase'; // Adjust if your singleton is in src/lib/supabase.js
 import Login from './pages/Login';
-import InviteSetup from './pages/InviteSetup';
-import EmployeeSplash from './pages/EmployeeSplash';
+import EmployeeDashboard from './pages/EmployeeDashboard';
+import Settings from './pages/Settings';
 import EmployeeSettings from './pages/EmployeeSettings';
+import InviteSetup from './pages/InviteSetup';
+import Profile from './pages/Profile';
+import EmployeeSplash from './pages/EmployeeSplash';
 import AdminDashboard from './pages/AdminDashboard';
-import AssignSites from './components/AssignSites';
-import ClockIn from './components/ClockIn';
+// Import other components/pages as needed (e.g., from src/components/auth if separate)
 
-export default function App() {
+function App() {
+  const [session, setSession] = useState(null); // Optional for global session tracking
+
   return (
-    <SessionContextProvider supabaseClient={supabase}>
-      <BrowserRouter>
+    <SessionContextProvider supabaseClient={supabaseClient} initialSession={session}>
+      <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={<EmployeeDashboard />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/employee-settings" element={<EmployeeSettings />} />
           <Route path="/invite" element={<InviteSetup />} />
-
-          <Route
-            path="/employee"
-            element={
-              <RequireAuth>
-                <RequireRole role="employee">
-                  <EmployeeSplash />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/employee/settings"
-            element={
-              <RequireAuth>
-                <RequireRole role="employee">
-                  <EmployeeSettings />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/employee/clockin"
-            element={
-              <RequireAuth>
-                <RequireRole role="employee">
-                  <ClockIn />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-
-          <Route
-            path="/admin"
-            element={
-              <RequireAuth>
-                <RequireRole role="admin">
-                  <AdminDashboard />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/admin/sites"
-            element={
-              <RequireAuth>
-                <RequireRole role="admin">
-                  <AssignSites />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/employee" element={<EmployeeSplash />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          {/* Add routes for other components like src/components/auth/ClockIn.jsx if needed */}
+          <Route path="/" element={<Navigate to="/login" />} />
         </Routes>
-      </BrowserRouter>
+      </Router>
     </SessionContextProvider>
   );
 }
+
+export default App;
