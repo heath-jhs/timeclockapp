@@ -159,6 +159,7 @@ const AdminDashboard = ({ logout }) => {
     }
   };
   const deleteEmployee = async (id) => {
+    if (!window.confirm('Confirm delete employee?')) return;
     try {
       const { error } = await supabase.from('profiles').delete().eq('id', id);
       if (error) throw error;
@@ -196,11 +197,12 @@ const AdminDashboard = ({ logout }) => {
     }
   };
   const deleteSite = async (id) => {
-    if (!window.confirm('Delete this site?')) return;
+    if (!window.confirm('Confirm delete site? This will remove associated assignments.')) return;
     try {
       const { error } = await supabase.from('sites').delete().eq('id', id);
       if (error) throw error;
-      setSuccess('Site deleted');
+      setSuccess('Site deleted successfully');
+      setError(null);
       await refreshAll();
     } catch (err) {
       setError(err.message);
@@ -228,11 +230,12 @@ const AdminDashboard = ({ logout }) => {
     }
   };
   const deleteAssignment = async (id) => {
-    if (!window.confirm('Delete this assignment?')) return;
+    if (!window.confirm('Confirm delete assignment?')) return;
     try {
       const { error } = await supabase.from('employee_sites').delete().eq('id', id);
       if (error) throw error;
-      setSuccess('Assignment deleted');
+      setSuccess('Assignment deleted successfully');
+      setError(null);
       await refreshAll();
     } catch (err) {
       setError(err.message);
@@ -532,6 +535,29 @@ const AdminDashboard = ({ logout }) => {
                 <td style={{ padding: '0.5rem' }}>{new Date(entry.clock_in_time).toLocaleString()}</td>
                 <td style={{ padding: '0.5rem' }}>{entry.clock_out_time ? new Date(entry.clock_out_time).toLocaleString() : 'N/A'}</td>
                 <td style={{ padding: '0.5rem' }}>{calculateDuration(entry)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Name</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Address</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sites.map((site, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '0.5rem' }}>{site.name}</td>
+                <td style={{ padding: '0.5rem' }}>{site.address}</td>
+                <td style={{ padding: '0.5rem' }}>
+                  <button onClick={() => deleteSite(site.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                </td>
               </tr>
             ))}
           </tbody>
