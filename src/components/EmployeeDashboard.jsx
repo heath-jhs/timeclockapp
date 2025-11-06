@@ -77,6 +77,7 @@ const EmployeeDashboard = ({ logout, userId }) => {
         setError(null);
       } catch (err) {
         setError(err.message);
+        console.error('Data fetch error:', err); // Added logging for troubleshooting
       } finally {
         setLoading(false);
       }
@@ -155,7 +156,7 @@ const EmployeeDashboard = ({ logout, userId }) => {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
         <img src={jshLogo} alt="JSH Logo" style={{ maxHeight: '60px' }} />
       </div>
-      <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Employee Dashboard {isPreview ? '(Preview Mode)' : ''}</h1>
+      <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Employee Dashboard {isPreview ? '(Preview)' : ''}</h1>
       {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{error}</div>}
       <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Profile</h2>
