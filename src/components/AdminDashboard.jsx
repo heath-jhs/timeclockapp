@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from './supabaseClient';
+import { supabase } from '../supabaseClient';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -81,7 +81,6 @@ const AdminDashboard = ({ logout }) => {
   const [loadingEmployee, setLoadingEmployee] = useState(false);
   const [loadingSite, setLoadingSite] = useState(false);
   const [loadingAssign, setLoadingAssign] = useState(false);
-  const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
   const refreshAll = async () => {
     setError(null);
     await Promise.all([
