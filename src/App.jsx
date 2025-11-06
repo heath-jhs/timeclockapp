@@ -14,13 +14,21 @@ const App = () => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error('Session error:', sessionError); // Debug session issues
+          throw sessionError;
+        }
         if (session) {
-          const { data: { user } } = await supabase.auth.getUser();
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          if (userError) {
+            console.error('User fetch error:', userError);
+            throw userError;
+          }
           setUser(user);
         }
       } catch (err) {
-        console.error('Session error:', err);
+        console.error('Session check failed:', err);
         setAppError(err.message);
       }
     };
