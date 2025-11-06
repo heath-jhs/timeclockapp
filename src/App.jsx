@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import AdminDashboard from './components/AdminDashboard';
 import EmployeeDashboard from './components/EmployeeDashboard';
+import SetPassword from './components/SetPassword'; // Added import
 
 const App = () => {
   const [email, setEmail] = useState('');
@@ -10,9 +11,7 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [appError, setAppError] = useState(null);
-
   const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
-
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -28,7 +27,6 @@ const App = () => {
     };
     checkSession();
   }, []);
-
   const login = async () => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -42,7 +40,6 @@ const App = () => {
       setError(err.message);
     }
   };
-
   const logout = async () => {
     try {
       await supabase.auth.signOut();
@@ -52,7 +49,6 @@ const App = () => {
       setAppError(err.message);
     }
   };
-
   if (appError) {
     return (
       <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto' }}>
@@ -62,7 +58,6 @@ const App = () => {
       </div>
     );
   }
-
   if (!user) {
     return (
       <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto', background: '#f8f9fa' }}>
@@ -74,17 +69,15 @@ const App = () => {
       </div>
     );
   }
-
   const role = user.app_metadata?.role || 'Employee';
-
   return (
     <Router>
       <Routes>
         <Route path="/" element={role === 'Admin' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
+        <Route path="/set-password" element={<SetPassword />} /> // Added
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
   );
 };
-
 export default App;
