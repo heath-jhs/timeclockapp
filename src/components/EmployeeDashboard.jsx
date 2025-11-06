@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
@@ -24,6 +23,7 @@ const EmployeeDashboard = ({ logout, userId }) => {
   const [error, setError] = useState(null);
   const [effectiveUserId, setEffectiveUserId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isPreview, setIsPreview] = useState(false);
   useEffect(() => {
     const fetchUserAndData = async () => {
       try {
@@ -32,6 +32,8 @@ const EmployeeDashboard = ({ logout, userId }) => {
           const { data: { user }, error: userError } = await supabase.auth.getUser();
           if (userError) throw userError;
           targetId = user.id;
+        } else {
+          setIsPreview(true);
         }
         setEffectiveUserId(targetId);
         // Profile
@@ -153,7 +155,7 @@ const EmployeeDashboard = ({ logout, userId }) => {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
         <img src={jshLogo} alt="JSH Logo" style={{ maxHeight: '60px' }} />
       </div>
-      <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Employee Dashboard {userId ? '(Preview)' : ''}</h1>
+      <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Employee Dashboard {isPreview ? '(Preview Mode)' : ''}</h1>
       {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{error}</div>}
       <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Profile</h2>
@@ -163,7 +165,9 @@ const EmployeeDashboard = ({ logout, userId }) => {
       </div>
       <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Clock In/Out</h2>
-        {currentEntry ? (
+        {isPreview ? (
+          <p>Clock actions disabled in preview mode.</p>
+        ) : currentEntry ? (
           <div>
             <p>Clocked in at {assignedSites.find(s => s.id === currentEntry.site_id)?.name} since {new Date(currentEntry.clock_in_time).toLocaleString()}</p>
             <button onClick={clockOut} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1rem' }}>Clock Out</button>
