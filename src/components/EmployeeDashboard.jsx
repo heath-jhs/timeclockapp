@@ -24,6 +24,8 @@ const EmployeeDashboard = ({ logout, userId }) => {
   const [effectiveUserId, setEffectiveUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isPreview, setIsPreview] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const itemsPerPage = 10;
   useEffect(() => {
     const fetchUserAndData = async () => {
       try {
@@ -62,8 +64,7 @@ const EmployeeDashboard = ({ logout, userId }) => {
           .from('time_entries')
           .select('*, site:site_id (name)')
           .eq('employee_id', targetId)
-          .order('clock_in_time', { ascending: false })
-          .limit(20);
+          .order('clock_in_time', { ascending: false });
         setHistory(hist);
         // Current entry
         const { data: entry } = await supabase
@@ -150,6 +151,7 @@ const EmployeeDashboard = ({ logout, userId }) => {
     const diff = (end - start) / (1000 * 60 * 60);
     return diff.toFixed(2) + ' hours';
   };
+  const paginatedHistory = history.slice((historyPage - 1) * itemsPerPage, historyPage * itemsPerPage);
   if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading dashboard...</div>;
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
@@ -183,8 +185,8 @@ const EmployeeDashboard = ({ logout, userId }) => {
           </div>
         )}
       </div>
-      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
-        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Schedule</h2>
+      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem', opacity: isPreview ? 0.7 : 1, pointerEvents: isPreview ? 'none' : 'auto' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Schedule {isPreview && '(Read-Only)'}</h2>
         <ul>
           {schedule.map(s => (
             <li key={s.id}>
@@ -193,10 +195,10 @@ const EmployeeDashboard = ({ logout, userId }) => {
           ))}
         </ul>
       </div>
-      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
-        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>History</h2>
+      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem', opacity: isPreview ? 0.7 : 1, pointerEvents: isPreview ? 'none' : 'auto' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>History {isPreview && '(Read-Only)'}</h2>
         <ul>
-          {history.map(entry => (
+          {paginatedHistory.map(entry => (
             <li key={entry.id}>
               Site: {entry.site.name}<br />
               In: {new Date(entry.clock_in_time).toLocaleString()}<br />
@@ -205,6 +207,10 @@ const EmployeeDashboard = ({ logout, userId }) => {
             </li>
           ))}
         </ul>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+          <button disabled={historyPage === 1} onClick={() => setHistoryPage(prev => prev - 1)} style={{ marginRight: '1rem' }}>Prev</button>
+          <button disabled={historyPage * itemsPerPage >= history.length} onClick={() => setHistoryPage(prev => prev + 1)}>Next</button>
+        </div>
       </div>
       <div style={{ height: '400px', marginBottom: '1.5rem' }}>
         <MapContainer center={[37.0902, -95.7129]} zoom={4} style={{ height: '100%' }}>
