@@ -530,7 +530,7 @@ const AdminDashboard = ({ logout }) => {
               <li key={emp.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   {emp.full_name ? `${emp.full_name} (${emp.username})` : emp.username} ({emp.role || 'Employee'})
-                  {currentUserRole === 'Admin' && (
+                  {currentUserRole?.toLowerCase() === 'admin' && (
                     <>
                       <button onClick={() => viewEmployeeDashboard(emp.id)} style={{ background: '#4299e1', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginRight: '0.5rem' }}>View Dashboard</button>
                       <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
@@ -574,7 +574,7 @@ const AdminDashboard = ({ logout }) => {
                 <td style={{ padding: '0.5rem' }}>{assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A'}</td>
                 <td style={{ padding: '0.5rem' }}>{calculateDuration(assign)}</td>
                 <td style={{ padding: '0.5rem' }}>
-                  {currentUserRole === 'Admin' && (
+                  {currentUserRole?.toLowerCase() === 'admin' && (
                     <button onClick={() => deleteAssignment(assign.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
                   )}
                 </td>
@@ -624,7 +624,7 @@ const AdminDashboard = ({ logout }) => {
                 <td style={{ padding: '0.5rem' }}>{site.name}</td>
                 <td style={{ padding: '0.5rem' }}>{site.address}</td>
                 <td style={{ padding: '0.5rem' }}>
-                  {currentUserRole === 'Admin' && (
+                  {currentUserRole?.toLowerCase() === 'admin' && (
                     <button onClick={() => deleteSite(site.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
                   )}
                 </td>
