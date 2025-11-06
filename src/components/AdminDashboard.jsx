@@ -54,7 +54,7 @@ const AdminDashboard = ({ logout }) => {
   const [timeEntries, setTimeEntries] = useState([]);
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
   const [newEmployeeName, setNewEmployeeName] = useState('');
-  const [newEmployeeRole, setNewEmployeeRole] = useState('Employee'); // New for role select
+  const [newEmployeeRole, setNewEmployeeRole] = useState('Employee');
   const [newSiteName, setNewSiteName] = useState('');
   const [newSiteAddress, setNewSiteAddress] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
@@ -160,7 +160,7 @@ const AdminDashboard = ({ logout }) => {
     try {
       const response = await fetch('/.netlify/functions/add-user', {
         method: 'POST',
-        body: JSON.stringify({ email: newEmployeeEmail, name: newEmployeeName, role: newEmployeeRole }), // Updated to role
+        body: JSON.stringify({ email: newEmployeeEmail, name: newEmployeeName, role: newEmployeeRole }),
       });
       if (!response.ok) {
         const { message } = await response.json();
