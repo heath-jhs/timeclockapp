@@ -95,21 +95,32 @@ const AdminDashboard = ({ logout }) => {
   };
   useEffect(() => {
     const fetchCurrentRole = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      console.log('fetchCurrentRole called'); // Debug function execution
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
+      if (userErr) {
+        console.error('getUser error:', userErr);
+        setError('Failed to get user');
+        return;
+      }
       if (user) {
+        console.log('Logged-in user ID:', user.id);
         const { data: profile, error } = await supabase.from('profiles').select('role').eq('id', user.id).single();
         if (error) {
-          console.error('Role fetch error:', error);
+          console.error('Role fetch failed:', error);
           setError('Failed to fetch user role');
           return;
         }
-        console.log('Current user role:', profile.role); // Debug log
+        console.log('Full profile:', profile);
+        console.log('Current user role:', profile.role);
         setCurrentUserRole(profile.role);
       }
     };
     fetchCurrentRole();
     refreshAll();
   }, []);
+  useEffect(() => {
+    console.log('currentUserRole updated to:', currentUserRole);
+  }, [currentUserRole]);
   useEffect(() => {
     if (success) {
       const timer = setTimeout(() => setSuccess(null), 3000);
@@ -462,6 +473,9 @@ const AdminDashboard = ({ logout }) => {
   };
   const paginatedTimeEntries = timeEntries.slice((timeEntriesPage - 1) * itemsPerPage, timeEntriesPage * itemsPerPage);
   const paginatedAssignments = assignments.slice((assignmentsPage - 1) * itemsPerPage, assignmentsPage * itemsPerPage);
+  if (currentUserRole === undefined) {
+    return <div>Loading role...</div>; // Fallback UI
+  }
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
@@ -472,6 +486,7 @@ const AdminDashboard = ({ logout }) => {
         {error} <button onClick={refreshAll} style={{ background: '#4299e1', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Retry</button>
       </div>}
       {success && <div style={{ background: '#d4edda', color: '#155724', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{success}</div>}
+      
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Employee</h2>
