@@ -54,7 +54,7 @@ const AdminDashboard = ({ logout }) => {
   const [timeEntries, setTimeEntries] = useState([]);
   const [newEmployeeEmail, setNewEmployeeEmail] = useState('');
   const [newEmployeeName, setNewEmployeeName] = useState('');
-  const [newEmployeeIsAdmin, setNewEmployeeIsAdmin] = useState(false);
+  const [newEmployeeRole, setNewEmployeeRole] = useState('Employee'); // New for role select
   const [newSiteName, setNewSiteName] = useState('');
   const [newSiteAddress, setNewSiteAddress] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
@@ -68,6 +68,7 @@ const AdminDashboard = ({ logout }) => {
   const [reportTab, setReportTab] = useState('comparison');
   const [reportStart, setReportStart] = useState(new Date(new Date().setDate(new Date().getDate() - 30))); // Default last 30 days
   const [reportEnd, setReportEnd] = useState(new Date());
+  const [currentUserRole, setCurrentUserRole] = useState('');
   const [loadingEmployee, setLoadingEmployee] = useState(false);
   const [loadingSite, setLoadingSite] = useState(false);
   const [loadingAssign, setLoadingAssign] = useState(false);
@@ -82,6 +83,14 @@ const AdminDashboard = ({ logout }) => {
     ]);
   };
   useEffect(() => {
+    const fetchCurrentRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        setCurrentUserRole(profile.role);
+      }
+    };
+    fetchCurrentRole();
     refreshAll();
   }, []);
   useEffect(() => {
@@ -94,7 +103,12 @@ const AdminDashboard = ({ logout }) => {
     try {
       const { data, error } = await supabase.from('profiles').select('*');
       if (error) throw error;
-      setEmployees(data);
+      // Sort by role: Admin > Manager > Employee
+      const sorted = data.sort((a, b) => {
+        const order = { Admin: 0, Manager: 1, Employee: 2 };
+        return order[a.role] - order[b.role];
+      });
+      setEmployees(sorted);
     } catch (err) {
       setError('Employees fetch failed: ' + err.message);
     }
@@ -146,7 +160,7 @@ const AdminDashboard = ({ logout }) => {
     try {
       const response = await fetch('/.netlify/functions/add-user', {
         method: 'POST',
-        body: JSON.stringify({ email: newEmployeeEmail, name: newEmployeeName, isAdmin: newEmployeeIsAdmin }),
+        body: JSON.stringify({ email: newEmployeeEmail, name: newEmployeeName, role: newEmployeeRole }), // Updated to role
       });
       if (!response.ok) {
         const { message } = await response.json();
@@ -154,7 +168,7 @@ const AdminDashboard = ({ logout }) => {
       }
       setNewEmployeeEmail('');
       setNewEmployeeName('');
-      setNewEmployeeIsAdmin(false);
+      setNewEmployeeRole('Employee');
       setError(null);
       setSuccess('Employee added successfully');
       await refreshAll();
@@ -431,9 +445,11 @@ const AdminDashboard = ({ logout }) => {
           <div style={{ width: '100%' }}>
             <input type="email" placeholder="Email" value={newEmployeeEmail} onChange={e => setNewEmployeeEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-            <input type="checkbox" checked={newEmployeeIsAdmin} onChange={e => setNewEmployeeIsAdmin(e.target.checked)} style={{ marginRight: '0.5rem' }} /> Admin
-          </label>
+          <select value={newEmployeeRole} onChange={e => setNewEmployeeRole(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }}>
+            <option value="Employee">Employee</option>
+            <option value="Manager">Manager</option>
+            <option value="Admin">Admin</option>
+          </select>
           <button onClick={addEmployee} disabled={loadingEmployee} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>
             {loadingEmployee ? 'Adding...' : 'Add Employee'}
           </button>
@@ -488,7 +504,9 @@ const AdminDashboard = ({ logout }) => {
               <li key={emp.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   {emp.full_name ? `${emp.full_name} (${emp.username})` : emp.username} ({emp.role || 'Employee'})
-                  <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                  {currentUserRole === 'Admin' && (
+                    <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                  )}
                 </div>
                 <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
                   <span style={{ marginRight: '0.5rem' }}>Name:</span>
@@ -527,7 +545,9 @@ const AdminDashboard = ({ logout }) => {
                 <td style={{ padding: '0.5rem' }}>{assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A'}</td>
                 <td style={{ padding: '0.5rem' }}>{calculateDuration(assign)}</td>
                 <td style={{ padding: '0.5rem' }}>
-                  <button onClick={() => deleteAssignment(assign.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                  {currentUserRole === 'Admin' && (
+                    <button onClick={() => deleteAssignment(assign.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -575,7 +595,9 @@ const AdminDashboard = ({ logout }) => {
                 <td style={{ padding: '0.5rem' }}>{site.name}</td>
                 <td style={{ padding: '0.5rem' }}>{site.address}</td>
                 <td style={{ padding: '0.5rem' }}>
-                  <button onClick={() => deleteSite(site.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                  {currentUserRole === 'Admin' && (
+                    <button onClick={() => deleteSite(site.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                  )}
                 </td>
               </tr>
             ))}
