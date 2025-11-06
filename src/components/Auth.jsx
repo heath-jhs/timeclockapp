@@ -43,9 +43,8 @@ const Auth = () => {
   }, [user]);
 
   const checkAndRedirect = async (userId) => {
-    const { data: profile } = await supabase.from('profiles').select('role, is_admin').eq('id', userId).single();
-    const isAdmin = profile.is_admin || profile.role === 'Admin';
-    if (isAdmin) {
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
+    if (profile.role === 'Admin' || profile.role === 'Manager') {
       navigate('/admin-dashboard');
     } else {
       navigate('/employee-dashboard');
@@ -107,3 +106,4 @@ const Auth = () => {
     </div>
   );
 };
+export default Auth;
