@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { BrowserRouter as Router, Route, Routes, Navigate, useParams } from 'react-router-dom';
+import { supabase } from './supabaseClient'; // Use singleton import
 import AdminDashboard from './components/AdminDashboard';
 import EmployeeDashboard from './components/EmployeeDashboard';
 import SetPassword from './components/SetPassword';
@@ -10,13 +10,12 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [appError, setAppError] = useState(null);
-  const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
   useEffect(() => {
     const checkSession = async () => {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) {
-          console.error('Session error:', sessionError); // Debug session issues
+          console.error('Session error:', sessionError);
           throw sessionError;
         }
         if (session) {
@@ -25,10 +24,10 @@ const App = () => {
             console.error('User fetch error:', userError);
             throw userError;
           }
-          console.log('Session refreshed - User ID:', user.id); // Debug active session
+          console.log('Session refreshed - User ID:', user.id);
           setUser(user);
         } else {
-          console.log('No active session - redirecting to login'); // Debug no session
+          console.log('No active session - redirecting to login');
           setUser(null);
         }
       } catch (err) {
@@ -38,7 +37,7 @@ const App = () => {
     };
     checkSession();
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state change:', event); // Debug auth events
+      console.log('Auth state change:', event);
       setUser(session?.user ?? null);
     });
     return () => {
@@ -51,7 +50,7 @@ const App = () => {
       if (error) throw error;
       const { data: refreshed } = await supabase.auth.getUser();
       setUser(refreshed.user);
-      console.log('User app_metadata:', refreshed.user.app_metadata); // Debug log
+      console.log('User app_metadata:', refreshed.user.app_metadata);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -61,7 +60,7 @@ const App = () => {
     try {
       await supabase.auth.signOut();
       setUser(null);
-      console.log('Logged out successfully'); // Debug logout
+      console.log('Logged out successfully');
     } catch (err) {
       console.error('Logout error:', err);
       setAppError(err.message);
@@ -96,11 +95,10 @@ const App = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={!user ? <div>Login form (as above)</div> : <Navigate to="/" />} />
-        <Route path="/" element={user ? (role === 'Admin' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />) : <Navigate to="/login" />} />
+        <Route path="/" element={role === 'Admin' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
         <Route path="/set-password" element={<SetPassword />} />
-        <Route path="/employee-dashboard/:id" element={user && role === 'Admin' ? <EmployeeDashboardWrapper /> : <Navigate to="/login" />} />
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="/employee-dashboard/:id" element={<EmployeeDashboardWrapper />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
   );
