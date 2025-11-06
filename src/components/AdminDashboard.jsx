@@ -335,16 +335,33 @@ const AdminDashboard = ({ logout }) => {
     }, 0);
   };
   const getBudgetedHours = (employee, assignment, startDate, endDate) => {
-    const assignStart = new Date(assignment.start_date || startDate);
-    const assignEnd = new Date(assignment.end_date || endDate);
-    const periodStart = new Date(startDate);
-    const periodEnd = new Date(endDate);
-    const overlapStart = new Date(Math.max(assignStart, periodStart));
-    const overlapEnd = new Date(Math.min(assignEnd, periodEnd));
-    if (overlapStart > overlapEnd) return 0;
-    const days = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24));
-    return days * (employee.work_hours || 8);
-  };
+  const assignStart = new Date(assignment.start_date || startDate);
+  const assignEnd = new Date(assignment.end_date || endDate);
+  const periodStart = new Date(startDate);
+  const periodEnd = new Date(endDate);
+  const overlapStart = new Date(Math.max(assignStart, periodStart));
+  const overlapEnd = new Date(Math.min(assignEnd, periodEnd));
+  if (overlapStart > overlapEnd) return 0;
+  const dailyHours = employee.work_hours || 8;
+  const dailyStartHour = employee.daily_start ? parseInt(employee.daily_start.split(':')[0]) : 9;
+  const dailyEndHour = employee.daily_end ? parseInt(employee.daily_end.split(':')[0]) : 17;
+  let totalHours = 0;
+  let current = new Date(overlapStart);
+  current.setHours(0, 0, 0, 0); // Start at beginning of day
+  while (current <= overlapEnd) {
+    const dayStart = new Date(current);
+    dayStart.setHours(dailyStartHour, 0, 0, 0);
+    const dayEnd = new Date(current);
+    dayEnd.setHours(dailyEndHour, 0, 0, 0);
+    const effStart = new Date(Math.max(overlapStart, dayStart));
+    const effEnd = new Date(Math.min(overlapEnd, dayEnd));
+    if (effStart < effEnd) {
+      totalHours += (effEnd - effStart) / (1000 * 60 * 60);
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  return Math.min(totalHours, dailyHours * Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)));
+};
   const getEfficiencyData = (employeeId) => {
     const employeeAssignments = assignments.filter(a => a.employee_id === employeeId);
     const data = employeeAssignments.map(a => {
