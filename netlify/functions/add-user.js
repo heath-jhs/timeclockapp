@@ -3,7 +3,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
-  const { email, name, role } = JSON.parse(event.body); // Changed isAdmin to role ('Admin', 'Manager', 'Employee')
+  const { email, name, role } = JSON.parse(event.body); 
   if (!email || !name || !role) {
     return { statusCode: 400, body: JSON.stringify({ message: 'Email, name, and role are required' }) };
   }
