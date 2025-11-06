@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import DatePicker from 'react-datepicker';
@@ -21,6 +21,7 @@ import {
   Legend,
 } from 'chart.js';
 import * as XLSX from 'xlsx';
+import debounce from 'lodash/debounce';
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -146,7 +147,7 @@ const AdminDashboard = ({ logout }) => {
       setError('Time entries fetch failed: ' + err.message);
     }
   };
-  const updateProfile = async (id, field, value) => {
+  const debouncedUpdateProfile = useCallback(debounce(async (id, field, value) => {
     try {
       const { error } = await supabase.from('profiles').update({ [field]: value }).eq('id', id);
       if (error) throw error;
@@ -154,7 +155,7 @@ const AdminDashboard = ({ logout }) => {
     } catch (err) {
       setError(err.message);
     }
-  };
+  }, 500), []);
   const addEmployee = async () => {
     setLoadingEmployee(true);
     try {
@@ -272,32 +273,24 @@ const AdminDashboard = ({ logout }) => {
     const startDate = new Date(assign.start_date || new Date().toISOString());
     const endDate = new Date(assign.end_date || new Date().toISOString());
     if (startDate > endDate) return '0.00 hours';
-
     const employee = assign.employee;
     const dailyHours = employee.work_hours || 8;
     const dailyStart = employee.daily_start ? parseInt(employee.daily_start.split(':')[0]) : 9;
     const dailyEnd = employee.daily_end ? parseInt(employee.daily_end.split(':')[0]) : 17;
-
     let totalHours = 0;
     let current = new Date(startDate);
     while (current <= endDate) {
-      // Skip weekends if needed (add if(req) current.getDay() !== 0 && !== 6)
       const dayStart = new Date(current);
       dayStart.setHours(dailyStart, 0, 0, 0);
       const dayEnd = new Date(current);
       dayEnd.setHours(dailyEnd, 0, 0, 0);
-
-      // Intersect with assignment period
       const effStart = new Date(Math.max(startDate, dayStart));
       const effEnd = new Date(Math.min(endDate, dayEnd));
-
       if (effStart < effEnd) {
         totalHours += (effEnd - effStart) / (1000 * 60 * 60);
       }
-
       current.setDate(current.getDate() + 1);
     }
-
     return Math.min(totalHours, dailyHours * Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))).toFixed(2) + ' hours';
   };
   const getSiteAssignments = (siteId) => {
@@ -435,7 +428,7 @@ const AdminDashboard = ({ logout }) => {
         {error} <button onClick={refreshAll} style={{ background: '#4299e1', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Retry</button>
       </div>}
       {success && <div style={{ background: '#d4edda', color: '#155724', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{success}</div>}
-     
+    
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Employee</h2>
@@ -478,7 +471,7 @@ const AdminDashboard = ({ logout }) => {
             <option>A-Z</option>
             <option>Z-A</option>
           </select>
-          <div style={{ marginBottom: '1rem' }}>
+          <div style={{ marginBottom: '1rem', maxHeight: '200px', overflowY: 'auto' }}> {/* Added scroll for long lists */}
             {sortedSites.map(site => (
               <label key={site.id} style={{ display: 'block', marginBottom: '0.5rem' }}>
                 <input type="checkbox" checked={selectedSites.includes(site.id)} onChange={() => {
@@ -508,15 +501,15 @@ const AdminDashboard = ({ logout }) => {
                     <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
                   )}
                 </div>
-                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
+                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}> {/* Added wrap for mobile */}
                   <span style={{ marginRight: '0.5rem' }}>Name:</span>
-                  <input type="text" defaultValue={emp.full_name || ''} onBlur={e => updateProfile(emp.id, 'full_name', e.target.value)} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem', flex: '1' }} />
+                  <input type="text" defaultValue={emp.full_name || ''} onBlur={e => debouncedUpdateProfile(emp.id, 'full_name', e.target.value)} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem', flex: '1 1 auto' }} />
                   <span style={{ marginRight: '0.5rem' }}>Daily Work Hours:</span>
-                  <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => updateProfile(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
+                  <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => debouncedUpdateProfile(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
                   <span style={{ marginRight: '0.5rem' }}>Start:</span>
-                  <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => updateProfile(emp.id, 'daily_start', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
+                  <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => debouncedUpdateProfile(emp.id, 'daily_start', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
                   <span style={{ marginRight: '0.5rem' }}>End:</span>
-                  <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => updateProfile(emp.id, 'daily_end', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
+                  <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => debouncedUpdateProfile(emp.id, 'daily_end', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
                 </div>
               </li>
             ))}
