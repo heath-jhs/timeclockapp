@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
@@ -7,15 +8,13 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import jshLogo from '../assets/jsh-logo.png'; // From assets
-
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
 });
-
-const EmployeeDashboard = ({ logout }) => {
+const EmployeeDashboard = ({ logout, userId }) => {
   const [assignedSites, setAssignedSites] = useState([]);
   const [selectedSite, setSelectedSite] = useState('');
   const [currentEntry, setCurrentEntry] = useState(null);
@@ -23,54 +22,52 @@ const EmployeeDashboard = ({ logout }) => {
   const [schedule, setSchedule] = useState([]);
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState(null);
-  const [userId, setUserId] = useState(null);
+  const [effectiveUserId, setEffectiveUserId] = useState(null);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const fetchUserAndData = async () => {
       try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-        setUserId(user.id);
-
+        let targetId = userId;
+        if (!targetId) {
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          if (userError) throw userError;
+          targetId = user.id;
+        }
+        setEffectiveUserId(targetId);
         // Profile
-        const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        const { data: prof } = await supabase.from('profiles').select('*').eq('id', targetId).single();
         setProfile(prof);
-
         // Assigned sites
         const { data: assignments } = await supabase
           .from('employee_sites')
           .select('site_id')
-          .eq('employee_id', user.id);
+          .eq('employee_id', targetId);
         const siteIds = assignments.map(a => a.site_id);
         const { data: sites } = await supabase
           .from('sites')
           .select('*')
           .in('id', siteIds);
         setAssignedSites(sites);
-
         // Schedule (from employee_sites with dates)
         const { data: sched } = await supabase
           .from('employee_sites')
           .select('*, site:site_id (name)')
-          .eq('employee_id', user.id)
+          .eq('employee_id', targetId)
           .order('start_date');
         setSchedule(sched);
-
         // History
         const { data: hist } = await supabase
           .from('time_entries')
           .select('*, site:site_id (name)')
-          .eq('employee_id', user.id)
+          .eq('employee_id', targetId)
           .order('clock_in_time', { ascending: false })
           .limit(20);
         setHistory(hist);
-
         // Current entry
         const { data: entry } = await supabase
           .from('time_entries')
           .select('*')
-          .eq('employee_id', user.id)
+          .eq('employee_id', targetId)
           .is('clock_out_time', null)
           .order('clock_in_time', { ascending: false })
           .limit(1);
@@ -83,12 +80,10 @@ const EmployeeDashboard = ({ logout }) => {
       }
     };
     fetchUserAndData();
-  }, []);
-
+  }, [userId]);
   const getLocation = () => new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
   });
-
   const haversineDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371e3; // meters
     const p1 = lat1 * Math.PI / 180;
@@ -101,7 +96,6 @@ const EmployeeDashboard = ({ logout }) => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
-
   const clockIn = async () => {
     if (!selectedSite) {
       setError('Select a site first');
@@ -114,7 +108,7 @@ const EmployeeDashboard = ({ logout }) => {
       const dist = haversineDistance(latitude, longitude, site.lat, site.lon);
       if (dist > 100) throw new Error('Too far from site - must be within 100m');
       const { data, error } = await supabase.from('time_entries').insert({
-        employee_id: userId,
+        employee_id: effectiveUserId,
         site_id: selectedSite,
         clock_in_time: new Date().toISOString(),
         clock_in_lat: latitude,
@@ -128,7 +122,6 @@ const EmployeeDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
-
   const clockOut = async () => {
     try {
       const position = await getLocation();
@@ -147,7 +140,6 @@ const EmployeeDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
-
   const calculateDuration = (entry) => {
     if (!entry.clock_out_time) return 'Ongoing';
     const start = new Date(entry.clock_in_time);
@@ -155,15 +147,13 @@ const EmployeeDashboard = ({ logout }) => {
     const diff = (end - start) / (1000 * 60 * 60);
     return diff.toFixed(2) + ' hours';
   };
-
   if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading dashboard...</div>;
-
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
         <img src={jshLogo} alt="JSH Logo" style={{ maxHeight: '60px' }} />
       </div>
-      <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Employee Dashboard</h1>
+      <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Employee Dashboard {userId ? '(Preview)' : ''}</h1>
       {error && <div style={{ background: '#fed7d7', color: '#9b2c2c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{error}</div>}
       <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Profile</h2>
@@ -225,5 +215,4 @@ const EmployeeDashboard = ({ logout }) => {
     </div>
   );
 };
-
 export default EmployeeDashboard;
