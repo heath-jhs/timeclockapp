@@ -94,7 +94,12 @@ const AdminDashboard = ({ logout }) => {
     const fetchCurrentRole = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        const { data: profile, error } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        if (error) {
+          console.error('Role fetch error:', error);
+          setError('Failed to fetch user role');
+          return;
+        }
         console.log('Current user role:', profile.role); // Debug log
         setCurrentUserRole(profile.role);
       }
@@ -462,7 +467,6 @@ const AdminDashboard = ({ logout }) => {
         {error} <button onClick={refreshAll} style={{ background: '#4299e1', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Retry</button>
       </div>}
       {success && <div style={{ background: '#d4edda', color: '#155724', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{success}</div>}
-    
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Employee</h2>
@@ -531,7 +535,7 @@ const AdminDashboard = ({ logout }) => {
               <li key={emp.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   {emp.full_name ? `${emp.full_name} (${emp.username})` : emp.username} ({emp.role || 'Employee'})
-                  {currentUserRole?.toLowerCase() === 'admin' && (
+                  {currentUserRole === 'Admin' && ( // Strict check for 'Admin'
                     <>
                       <button onClick={() => viewEmployeeDashboard(emp.id)} style={{ background: '#4299e1', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginRight: '0.5rem' }}>View Dashboard</button>
                       <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
@@ -575,7 +579,7 @@ const AdminDashboard = ({ logout }) => {
                 <td style={{ padding: '0.5rem' }}>{assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A'}</td>
                 <td style={{ padding: '0.5rem' }}>{calculateDuration(assign)}</td>
                 <td style={{ padding: '0.5rem' }}>
-                  {currentUserRole?.toLowerCase() === 'admin' && (
+                  {currentUserRole === 'Admin' && ( // Strict check
                     <button onClick={() => deleteAssignment(assign.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
                   )}
                 </td>
@@ -625,7 +629,7 @@ const AdminDashboard = ({ logout }) => {
                 <td style={{ padding: '0.5rem' }}>{site.name}</td>
                 <td style={{ padding: '0.5rem' }}>{site.address}</td>
                 <td style={{ padding: '0.5rem' }}>
-                  {currentUserRole?.toLowerCase() === 'admin' && (
+                  {currentUserRole === 'Admin' && ( // Strict check
                     <button onClick={() => deleteSite(site.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
                   )}
                 </td>
