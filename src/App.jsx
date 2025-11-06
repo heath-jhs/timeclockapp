@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useParams } from 'react-router-dom';
 import AdminDashboard from './components/AdminDashboard';
 import EmployeeDashboard from './components/EmployeeDashboard';
-import SetPassword from './components/SetPassword'; // Added import
-
+import SetPassword from './components/SetPassword';
 const App = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +30,6 @@ const App = () => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      // Force refresh to load app_metadata
       const { data: refreshed } = await supabase.auth.getUser();
       setUser(refreshed.user);
       console.log('User app_metadata:', refreshed.user.app_metadata); // Debug log
@@ -70,11 +68,17 @@ const App = () => {
     );
   }
   const role = user.app_metadata?.role || 'Employee';
+  const EmployeeDashboardWrapper = () => {
+    const { id } = useParams();
+    if (role !== 'Admin' && id) return <Navigate to="/" />;
+    return <EmployeeDashboard logout={logout} userId={id ? id : undefined} />;
+  };
   return (
     <Router>
       <Routes>
         <Route path="/" element={role === 'Admin' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
-        <Route path="/set-password" element={<SetPassword />} /> // Added
+        <Route path="/set-password" element={<SetPassword />} />
+        <Route path="/employee-dashboard/:id" element={<EmployeeDashboardWrapper />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
