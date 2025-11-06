@@ -26,7 +26,15 @@ const Auth = () => {
           const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
           if (error) throw error;
           const { data: { user } } = await supabase.auth.getUser();
-          if (user) await checkAndRedirect(user.id);
+          if (user) {
+            // Check if password is set (e.g., via has_password in metadata or assume new invites don't)
+            const { data: profile } = await supabase.from('profiles').select('has_password').eq('id', user.id).single(); // Add has_password bool to profiles, default false
+            if (profile.has_password) {
+              await checkAndRedirect(user.id);
+            } else {
+              navigate('/set-password');
+            }
+          }
         } catch (err) {
           setError(err.message || 'Confirmation failed');
         }
