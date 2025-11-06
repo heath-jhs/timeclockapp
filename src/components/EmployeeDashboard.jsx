@@ -208,8 +208,8 @@ const EmployeeDashboard = ({ logout, userId }) => {
           ))}
         </ul>
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
-          <button disabled={historyPage === 1} onClick={() => setHistoryPage(prev => prev - 1)} style={{ marginRight: '1rem' }}>Prev</button>
-          <button disabled={historyPage * itemsPerPage >= history.length} onClick={() => setHistoryPage(prev => prev + 1)}>Next</button>
+          <button disabled={historyPage === 1} onClick={() => setHistoryPage(prev => prev - 1)} style={{ marginRight: '1rem', padding: '0.25rem 0.5rem', background: historyPage === 1 ? '#e2e8f0' : '#4299e1', color: 'white', border: 'none', cursor: 'pointer' }}>Prev</button>
+          <button disabled={historyPage * itemsPerPage >= history.length} onClick={() => setHistoryPage(prev => prev + 1)} style={{ padding: '0.25rem 0.5rem', background: historyPage * itemsPerPage >= history.length ? '#e2e8f0' : '#4299e1', color: 'white', border: 'none', cursor: 'pointer' }}>Next</button>
         </div>
       </div>
       <div style={{ height: '400px', marginBottom: '1.5rem' }}>
