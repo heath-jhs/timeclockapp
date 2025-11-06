@@ -24,6 +24,7 @@ const EmployeeDashboard = ({ logout }) => {
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserAndData = async () => {
@@ -74,8 +75,11 @@ const EmployeeDashboard = ({ logout }) => {
           .order('clock_in_time', { ascending: false })
           .limit(1);
         setCurrentEntry(entry[0] || null);
+        setError(null);
       } catch (err) {
         setError(err.message);
+      } finally {
+        setLoading(false);
       }
     };
     fetchUserAndData();
@@ -152,6 +156,8 @@ const EmployeeDashboard = ({ logout }) => {
     return diff.toFixed(2) + ' hours';
   };
 
+  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading dashboard...</div>;
+
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', background: '#f8f9fa' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
@@ -187,7 +193,7 @@ const EmployeeDashboard = ({ logout }) => {
         <ul>
           {schedule.map(s => (
             <li key={s.id}>
-              {s.site.name}: {s.start_date ? new Date(s.start_date).toLocaleDateString() : 'N/A'} - {s.end_date ? new Date(s.end_date).toLocaleDateString() : 'N/A'}
+              {s.site.name}: {s.start_date ? new Date(s.start_date).toLocaleString() : 'N/A'} - {s.end_date ? new Date(s.end_date).toLocaleString() : 'N/A'}
             </li>
           ))}
         </ul>
