@@ -25,7 +25,11 @@ const App = () => {
             console.error('User fetch error:', userError);
             throw userError;
           }
+          console.log('Session refreshed - User ID:', user.id); // Debug active session
           setUser(user);
+        } else {
+          console.log('No active session - redirecting to login'); // Debug no session
+          setUser(null);
         }
       } catch (err) {
         console.error('Session check failed:', err);
@@ -33,6 +37,13 @@ const App = () => {
       }
     };
     checkSession();
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state change:', event); // Debug auth events
+      setUser(session?.user ?? null);
+    });
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
   const login = async () => {
     try {
@@ -50,6 +61,7 @@ const App = () => {
     try {
       await supabase.auth.signOut();
       setUser(null);
+      console.log('Logged out successfully'); // Debug logout
     } catch (err) {
       console.error('Logout error:', err);
       setAppError(err.message);
@@ -84,10 +96,11 @@ const App = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={role === 'Admin' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
+        <Route path="/login" element={!user ? <div>Login form (as above)</div> : <Navigate to="/" />} />
+        <Route path="/" element={user ? (role === 'Admin' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />) : <Navigate to="/login" />} />
         <Route path="/set-password" element={<SetPassword />} />
-        <Route path="/employee-dashboard/:id" element={<EmployeeDashboardWrapper />} />
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/employee-dashboard/:id" element={user && role === 'Admin' ? <EmployeeDashboardWrapper /> : <Navigate to="/login" />} />
+        <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </Router>
   );
