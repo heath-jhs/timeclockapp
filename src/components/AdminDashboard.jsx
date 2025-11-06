@@ -21,7 +21,6 @@ import {
   Legend,
 } from 'chart.js';
 import * as XLSX from 'xlsx';
-import debounce from 'lodash/debounce';
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -146,6 +145,13 @@ const AdminDashboard = ({ logout }) => {
     } catch (err) {
       setError('Time entries fetch failed: ' + err.message);
     }
+  };
+  const debounce = (func, delay) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), delay);
+    };
   };
   const debouncedUpdateProfile = useCallback(debounce(async (id, field, value) => {
     try {
@@ -280,10 +286,12 @@ const AdminDashboard = ({ logout }) => {
     let totalHours = 0;
     let current = new Date(startDate);
     while (current <= endDate) {
+      // Skip weekends if needed (add if(req) current.getDay() !== 0 && !== 6)
       const dayStart = new Date(current);
       dayStart.setHours(dailyStart, 0, 0, 0);
       const dayEnd = new Date(current);
       dayEnd.setHours(dailyEnd, 0, 0, 0);
+      // Intersect with assignment period
       const effStart = new Date(Math.max(startDate, dayStart));
       const effEnd = new Date(Math.min(endDate, dayEnd));
       if (effStart < effEnd) {
@@ -471,7 +479,7 @@ const AdminDashboard = ({ logout }) => {
             <option>A-Z</option>
             <option>Z-A</option>
           </select>
-          <div style={{ marginBottom: '1rem', maxHeight: '200px', overflowY: 'auto' }}> {/* Added scroll for long lists */}
+          <div style={{ marginBottom: '1rem' }}>
             {sortedSites.map(site => (
               <label key={site.id} style={{ display: 'block', marginBottom: '0.5rem' }}>
                 <input type="checkbox" checked={selectedSites.includes(site.id)} onChange={() => {
@@ -501,9 +509,9 @@ const AdminDashboard = ({ logout }) => {
                     <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
                   )}
                 </div>
-                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}> {/* Added wrap for mobile */}
+                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
                   <span style={{ marginRight: '0.5rem' }}>Name:</span>
-                  <input type="text" defaultValue={emp.full_name || ''} onBlur={e => debouncedUpdateProfile(emp.id, 'full_name', e.target.value)} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem', flex: '1 1 auto' }} />
+                  <input type="text" defaultValue={emp.full_name || ''} onBlur={e => debouncedUpdateProfile(emp.id, 'full_name', e.target.value)} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem', flex: '1' }} />
                   <span style={{ marginRight: '0.5rem' }}>Daily Work Hours:</span>
                   <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => debouncedUpdateProfile(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
                   <span style={{ marginRight: '0.5rem' }}>Start:</span>
