@@ -66,8 +66,17 @@ const AdminDashboard = ({ logout }) => {
   const [siteSort, setSiteSort] = useState('Recent');
   const [siteSearch, setSiteSearch] = useState('');
   const [reportTab, setReportTab] = useState('comparison');
-  const [reportStart, setReportStart] = useState(new Date(new Date().setDate(new Date().getDate() - 30))); // Default last 30 days
-  const [reportEnd, setReportEnd] = useState(new Date());
+  const [reportStart, setReportStart] = useState(() => {
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  });
+  const [reportEnd, setReportEnd] = useState(() => {
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    return end;
+  });
   const [currentUserRole, setCurrentUserRole] = useState('');
   const [loadingEmployee, setLoadingEmployee] = useState(false);
   const [loadingSite, setLoadingSite] = useState(false);
@@ -103,7 +112,6 @@ const AdminDashboard = ({ logout }) => {
     try {
       const { data, error } = await supabase.from('profiles').select('*');
       if (error) throw error;
-      // Sort by role: Admin > Manager > Employee
       const sorted = data.sort((a, b) => {
         const order = { Admin: 0, Manager: 1, Employee: 2 };
         return order[a.role] - order[b.role];
@@ -286,12 +294,10 @@ const AdminDashboard = ({ logout }) => {
     let totalHours = 0;
     let current = new Date(startDate);
     while (current <= endDate) {
-      // Skip weekends if needed (add if(req) current.getDay() !== 0 && !== 6)
       const dayStart = new Date(current);
       dayStart.setHours(dailyStart, 0, 0, 0);
       const dayEnd = new Date(current);
       dayEnd.setHours(dailyEnd, 0, 0, 0);
-      // Intersect with assignment period
       const effStart = new Date(Math.max(startDate, dayStart));
       const effEnd = new Date(Math.min(endDate, dayEnd));
       if (effStart < effEnd) {
@@ -648,7 +654,11 @@ const AdminDashboard = ({ logout }) => {
         <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Reports</h2>
         <div style={{ display: 'flex', marginBottom: '1rem' }}>
           <div style={{ marginRight: '1rem' }}>
-            <DatePicker selected={reportStart} onChange={date => setReportStart(date)} dateFormat="MMMM d, yyyy" placeholderText="Start Date" className="p-2 border border-gray-300 rounded-md" popperClassName="z-50" />
+            <DatePicker selected={reportStart} onChange={date => {
+              const startOfDay = new Date(date);
+              startOfDay.setHours(0, 0, 0, 0);
+              setReportStart(startOfDay);
+            }} dateFormat="MMMM d, yyyy" placeholderText="Start Date" className="p-2 border border-gray-300 rounded-md" popperClassName="z-50" />
           </div>
           <div>
             <DatePicker selected={reportEnd} onChange={date => {
@@ -700,7 +710,7 @@ const AdminDashboard = ({ logout }) => {
             <button onClick={exportTimelines} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
             {employees.map(emp => (
               <div key={emp.id} style={{ marginBottom: '2rem' }}>
-                <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}>{emp.full_name || emp.username} Efficiency Timeline</h3>
+                <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}> {emp.full_name || emp.username} Efficiency Timeline</h3>
                 <Line data={getEfficiencyData(emp.id)} options={{ responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Efficiency Over Assignments' } } }} />
               </div>
             ))}
