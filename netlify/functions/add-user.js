@@ -3,7 +3,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
-  const { email, name, role } = JSON.parse(event.body); 
+  const { email, name, role } = JSON.parse(event.body);
   if (!email || !name || !role) {
     return { statusCode: 400, body: JSON.stringify({ message: 'Email, name, and role are required' }) };
   }
@@ -26,6 +26,7 @@ exports.handler = async (event) => {
       username: email,
       role,
       full_name: name,
+      has_password: false, // Added to flag new invites
     }, { onConflict: 'id' });
     if (profileError) throw profileError;
     return { statusCode: 200, body: JSON.stringify({ message: 'User invited successfully' }) };
