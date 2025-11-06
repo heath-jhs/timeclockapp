@@ -3,9 +3,9 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
-  const { email, name, isAdmin } = JSON.parse(event.body);
-  if (!email || !name) {
-    return { statusCode: 400, body: JSON.stringify({ message: 'Email and name are required' }) };
+  const { email, name, role } = JSON.parse(event.body); // Changed isAdmin to role ('Admin', 'Manager', 'Employee')
+  if (!email || !name || !role) {
+    return { statusCode: 400, body: JSON.stringify({ message: 'Email, name, and role are required' }) };
   }
   try {
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
@@ -21,13 +21,11 @@ exports.handler = async (event) => {
       throw new Error(message);
     }
     const userId = inviteData.user.id;
-    const role = isAdmin ? 'Admin' : 'Employee';
     const { error: profileError } = await supabase.from('profiles').upsert({
       id: userId,
       username: email,
       role,
       full_name: name,
-      is_admin: isAdmin,  // Added to set is_admin boolean
     }, { onConflict: 'id' });
     if (profileError) throw profileError;
     return { statusCode: 200, body: JSON.stringify({ message: 'User invited successfully' }) };
