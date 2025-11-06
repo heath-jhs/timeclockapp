@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
-
 const SetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -10,7 +9,6 @@ const SetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(null);
   const navigate = useNavigate();
-
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -18,7 +16,6 @@ const SetPassword = () => {
     };
     fetchUser();
   }, []);
-
   const handleSetPassword = async (e) => {
     e.preventDefault();
     if (password !== confirmPassword) {
@@ -29,7 +26,7 @@ const SetPassword = () => {
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) throw updateError;
-      const { error: profileError } = await supabase.from('profiles').update({ phone_number: phone }).eq('id', userId);
+      const { error: profileError } = await supabase.from('profiles').update({ phone_number: phone, has_password: true }).eq('id', userId);
       if (profileError) throw profileError;
       navigate('/employee-dashboard'); // Or check role for redirect
     } catch (err) {
@@ -38,7 +35,6 @@ const SetPassword = () => {
       setLoading(false);
     }
   };
-
   return (
     <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto' }}>
       <h1 style={{ color: '#1a202c', fontSize: '1.875rem', fontWeight: 'bold' }}>Set Password</h1>
@@ -54,5 +50,4 @@ const SetPassword = () => {
     </div>
   );
 };
-
 export default SetPassword;
