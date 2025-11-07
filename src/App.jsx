@@ -11,6 +11,7 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [appError, setAppError] = useState(null);
+  const [loadingSession, setLoadingSession] = useState(true); // New loader state
 
   useEffect(() => {
     const checkSession = async () => {
@@ -24,7 +25,6 @@ const App = () => {
 
           setUser(user);
 
-          // Get type from URL query params
           const params = new URLSearchParams(window.location.search);
           const type = params.get('type');
           if (type === 'signup' || type === 'invite') {
@@ -36,6 +36,8 @@ const App = () => {
       } catch (err) {
         console.error('Session check failed:', err);
         setAppError(err.message);
+      } finally {
+        setLoadingSession(false); // End loading after check
       }
     };
 
@@ -112,6 +114,10 @@ const App = () => {
         </button>
       </div>
     );
+  }
+
+  if (loadingSession) {
+    return <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>; // Prevent flash
   }
 
   if (!user) {
