@@ -789,4 +789,3 @@ const AdminDashboard = ({ logout }) => {
   );
 };
 export default AdminDashboard;
----
