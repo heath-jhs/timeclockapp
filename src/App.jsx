@@ -1,6 +1,5 @@
-// File: /src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useParams } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import AdminDashboard from './components/AdminDashboard';
 import EmployeeDashboard from './components/EmployeeDashboard';
@@ -12,7 +11,6 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [appError, setAppError] = useState(null);
-  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const checkSession = async () => {
@@ -26,8 +24,9 @@ const App = () => {
 
           setUser(user);
 
-          // Only force set-password if URL has ?type=recovery (invite link)
-          const type = searchParams.get('type');
+          // Get type from URL query params (global access)
+          const params = new URLSearchParams(window.location.search);
+          const type = params.get('type');
           if (type === 'recovery') {
             await checkPasswordStatus(user.id);
           }
@@ -45,7 +44,8 @@ const App = () => {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
-        const type = new URLSearchParams(window.location.search).get('type');
+        const params = new URLSearchParams(window.location.search);
+        const type = params.get('type');
         if (type === 'recovery') {
           await checkPasswordStatus(session.user.id);
         }
@@ -55,7 +55,7 @@ const App = () => {
     });
 
     return () => authListener.subscription.unsubscribe();
-  }, [searchParams]);
+  }, []);
 
   const checkPasswordStatus = async (userId) => {
     try {
