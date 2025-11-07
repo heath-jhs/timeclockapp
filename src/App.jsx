@@ -27,7 +27,7 @@ const App = () => {
           // Get type from URL query params
           const params = new URLSearchParams(window.location.search);
           const type = params.get('type');
-          if (type === 'signup' || type === 'invite') { // Adjusted for invite type
+          if (type === 'signup' || type === 'invite') {
             await checkPasswordStatus(user.id);
           }
         } else {
@@ -46,8 +46,8 @@ const App = () => {
         setUser(session.user);
         const params = new URLSearchParams(window.location.search);
         const type = params.get('type');
-        if (type === 'signup' || type === 'invite') { // Adjusted for invite type
-          await checkPasswordStatus(session.user.id);
+        if (type === 'signup' || type === 'invite') {
+            await checkPasswordStatus(session.user.id);
         }
       } else {
         setUser(null);
@@ -149,12 +149,18 @@ const App = () => {
 
   const role = user.app_metadata?.role || 'Employee';
 
+  const EmployeeDashboardWrapper = () => {
+    const { id } = useParams();
+    if (role !== 'Admin' && id) return <Navigate to="/" />;
+    return <EmployeeDashboard logout={logout} userId={id ? id : undefined} />;
+  };
+
   return (
     <Router>
       <Routes>
         <Route path="/" element={role === 'Admin' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
         <Route path="/set-password" element={<SetPassword />} />
-        <Route path="/employee-dashboard/:id" element={<DashboardWrapper logout={logout} />} />
+        <Route path="/employee-dashboard/:id" element={<EmployeeDashboardWrapper />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
