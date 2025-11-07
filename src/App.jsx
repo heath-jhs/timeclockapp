@@ -1,5 +1,6 @@
+// File: /src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import AdminDashboard from './components/AdminDashboard';
 import EmployeeDashboard from './components/EmployeeDashboard';
@@ -11,6 +12,7 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
   const [appError, setAppError] = useState(null);
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const checkSession = async () => {
@@ -23,7 +25,12 @@ const App = () => {
           if (userError) throw userError;
 
           setUser(user);
-          await checkPasswordStatus(user.id);
+
+          // Only force set-password if URL has ?type=recovery (invite link)
+          const type = searchParams.get('type');
+          if (type === 'recovery') {
+            await checkPasswordStatus(user.id);
+          }
         } else {
           setUser(null);
         }
@@ -38,14 +45,17 @@ const App = () => {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
-        await checkPasswordStatus(session.user.id);
+        const type = new URLSearchParams(window.location.search).get('type');
+        if (type === 'recovery') {
+          await checkPasswordStatus(session.user.id);
+        }
       } else {
         setUser(null);
       }
     });
 
     return () => authListener.subscription.unsubscribe();
-  }, []);
+  }, [searchParams]);
 
   const checkPasswordStatus = async (userId) => {
     try {
@@ -58,7 +68,11 @@ const App = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (!profile?.has_password) {
-        window.location.href = '/set-password';
+        // Stay on /set-password
+        return;
+      } else {
+        // Password already set — redirect to dashboard
+        window.location.href = '/';
       }
     } catch (err) {
       console.error('Password check failed:', err);
@@ -72,7 +86,6 @@ const App = () => {
 
       const { data: refreshed } = await supabase.auth.getUser();
       setUser(refreshed.user);
-      await checkPasswordStatus(refreshed.user.id);
       setError(null);
     } catch (err) {
       setError(err.message);
