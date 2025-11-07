@@ -302,7 +302,7 @@ const AdminDashboard = ({ logout }) => {
       setError(err.message);
     }
   };
-  const calculateDuration = (assign) => {
+  const calculateAssignmentDuration = (assign) => {
     const startDate = new Date(assign.start_date || new Date().toISOString());
     const endDate = new Date(assign.end_date || new Date().toISOString());
     if (startDate > endDate) return '0.00 hours';
@@ -326,8 +326,15 @@ const AdminDashboard = ({ logout }) => {
     }
     return Math.min(totalHours, dailyHours * Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))).toFixed(2) + ' hours';
   };
+  const calculateEntryDuration = (entry) => {
+    if (!entry.clock_out_time) return 'Ongoing';
+    const start = new Date(entry.clock_in_time);
+    const end = new Date(entry.clock_out_time);
+    const diff = (end - start) / (1000 * 60 * 60);
+    return diff.toFixed(2) + ' hours';
+  };
   const getSiteAssignments = (siteId) => {
-    return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee.full_name || a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateDuration(a)})`).join('\n');
+    return assignments.filter(a => a.site_id === siteId).map(a => `${a.employee.full_name || a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateAssignmentDuration(a)})`).join('\n');
   };
   const sortSites = (sites, sortType) => {
     if (sortType === 'A-Z') {
@@ -486,7 +493,7 @@ const AdminDashboard = ({ logout }) => {
         {error} <button onClick={refreshAll} style={{ background: '#4299e1', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginLeft: '1rem' }}>Retry</button>
       </div>}
       {success && <div style={{ background: '#d4edda', color: '#155724', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{success}</div>}
-      
+     
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Employee</h2>
@@ -597,7 +604,7 @@ const AdminDashboard = ({ logout }) => {
                 <td style={{ padding: '0.5rem' }}>{assign.site?.name || 'Unknown'}</td>
                 <td style={{ padding: '0.5rem' }}>{assign.start_date ? new Date(assign.start_date).toLocaleString() : 'N/A'}</td>
                 <td style={{ padding: '0.5rem' }}>{assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A'}</td>
-                <td style={{ padding: '0.5rem' }}>{calculateDuration(assign)}</td>
+                <td style={{ padding: '0.5rem' }}>{calculateAssignmentDuration(assign)}</td>
                 <td style={{ padding: '0.5rem' }}>
                   {currentUserRole === 'Admin' && (
                     <button onClick={() => deleteAssignment(assign.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
@@ -631,7 +638,7 @@ const AdminDashboard = ({ logout }) => {
                 <td style={{ padding: '0.5rem' }}>{entry.site?.name || 'Unknown'}</td>
                 <td style={{ padding: '0.5rem' }}>{new Date(entry.clock_in_time).toLocaleString()}</td>
                 <td style={{ padding: '0.5rem' }}>{entry.clock_out_time ? new Date(entry.clock_out_time).toLocaleString() : 'N/A'}</td>
-                <td style={{ padding: '0.5rem' }}>{calculateDuration(entry)}</td>
+                <td style={{ padding: '0.5rem' }}>{calculateEntryDuration(entry)}</td>
               </tr>
             ))}
           </tbody>
@@ -782,3 +789,4 @@ const AdminDashboard = ({ logout }) => {
   );
 };
 export default AdminDashboard;
+---
