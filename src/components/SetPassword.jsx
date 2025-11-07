@@ -31,7 +31,7 @@ const SetPassword = () => {
       if (updateError) throw updateError;
       const { error: profileError } = await supabase.from('profiles').update({ phone_number: phone, has_password: true }).eq('id', userId);
       if (profileError) throw profileError;
-      navigate('/'); // Changed to '/', so App handles role-based dashboard
+      navigate('/'); // Corrected to '/', so App.jsx handles role-based dashboard
     } catch (err) {
       setError(err.message);
     } finally {
