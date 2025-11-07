@@ -143,17 +143,4 @@ return (
     </route></route></route></employeedashboard></route></routes>
   );
 };
-<h2>export default App;</h2>
-<h2>File: /src/main.jsx</h2>
-<p>import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import { BrowserRouter } from 'react-router-dom';
-import './index.css';</p>
-<h2>ReactDOM.createRoot(document.getElementById('root')).render(
-&#x3C;React.StrictMode>
-&#x3C;BrowserRouter>
-&#x3C;App />
-&#x3C;/BrowserRouter>
-&#x3C;/React.StrictMode>,
-);</h2></employeedashboard></navigate>
+<h2>export default App;</h2></employeedashboard></navigate>
