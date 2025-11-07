@@ -12,6 +12,7 @@ exports.handler = async (event) => {
     const adminAuthClient = supabase.auth.admin;
     const { data: inviteData, error: inviteError } = await adminAuthClient.inviteUserByEmail(email, {
       data: { full_name: name },
+      redirectTo: `${process.env.SITE_URL}/set-password`  // Added to redirect after confirmation
     });
     if (inviteError) {
       let message = inviteError.message;
