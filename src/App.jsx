@@ -105,11 +105,11 @@ return (
       
     );
   }
-  if (loadingSession) {
-    return Loading...;
-  }
-  if (!user) {
-    return (
+if (loadingSession) {
+return Loading...;
+}
+if (!user) {
+return (
       
         
           Login
@@ -131,19 +131,17 @@ return (
       
     );
   }
-  const EmployeeDashboardWrapper = () => {
-    const { id } = useParams();
-    if (role !== 'Admin' && id) return <navigate to="/">;
-    return <employeedashboard logout="{logout}" userid="{id" ?="" id="" :="" undefined}="">;
-  };
-  return (
-    <routes>
-      <route path="/" element="{role" &#x3D;="=" &#x27;admin&#x27;="" ||="" role="==" &#x27;manager&#x27;="" ?="" &#x3C;admindashboard="" logout="{logout}"> : <employeedashboard logout="{logout}">} />
-      <route path="/set-password" element="{<SetPassword">} />
-      <route path="/employee-dashboard/:id" element="{<EmployeeDashboardWrapper">} />
-      <route path="*" element="{<Navigate" to="/">} />
-    </route></route></route></employeedashboard></route></routes>
-  );
+const EmployeeDashboardWrapper = () => {
+const { id } = useParams();
+if (role !== 'Admin' && id) return <Navigate to="/" />;
+return <EmployeeDashboard logout={logout} userId={id ? id : undefined} />;
 };
-export default App;
----</employeedashboard></navigate>
+return (
+<Routes>
+<Route path="/" element={role === 'Admin' || role === 'Manager' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
+<Route path="/set-password" element={<SetPassword />} />
+<Route path="/employee-dashboard/:id" element={<EmployeeDashboardWrapper />} />
+<Route path="*" element={<Navigate to="/" />} />
+</Routes>
+);
+};
