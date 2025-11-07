@@ -5,35 +5,6 @@ import AdminDashboard from './components/AdminDashboard';
 import EmployeeDashboard from './components/EmployeeDashboard';
 import SetPassword from './components/SetPassword';
 
-const DashboardWrapper = ({ logout }) => {
-  const { id } = useParams();
-  const [targetRole, setTargetRole] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchTargetRole = async () => {
-      try {
-        const { data: profile, error } = await supabase.from('profiles').select('role').eq('id', id).single();
-        if (error) throw error;
-        setTargetRole(profile.role);
-      } catch (err) {
-        console.error('Failed to fetch target role:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTargetRole();
-  }, [id]);
-
-  if (loading) return <div>Loading dashboard...</div>;
-
-  if (targetRole === 'Admin' || targetRole === 'Manager') {
-    return <AdminDashboard logout={logout} />;
-  } else {
-    return <EmployeeDashboard logout={logout} userId={id} />;
-  }
-};
-
 const App = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,7 +27,7 @@ const App = () => {
           // Get type from URL query params
           const params = new URLSearchParams(window.location.search);
           const type = params.get('type');
-          if (type === 'recovery') {
+          if (type === 'signup' || type === 'invite') { // Adjusted for invite type
             await checkPasswordStatus(user.id);
           }
         } else {
@@ -75,7 +46,7 @@ const App = () => {
         setUser(session.user);
         const params = new URLSearchParams(window.location.search);
         const type = params.get('type');
-        if (type === 'recovery') {
+        if (type === 'signup' || type === 'invite') { // Adjusted for invite type
           await checkPasswordStatus(session.user.id);
         }
       } else {
@@ -178,18 +149,12 @@ const App = () => {
 
   const role = user.app_metadata?.role || 'Employee';
 
-  const DashboardWrapperWithRoleCheck = () => {
-    const { id } = useParams();
-    if (role !== 'Admin' && id) return <Navigate to="/" />;
-    return <DashboardWrapper logout={logout} />;
-  };
-
   return (
     <Router>
       <Routes>
         <Route path="/" element={role === 'Admin' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
         <Route path="/set-password" element={<SetPassword />} />
-        <Route path="/employee-dashboard/:id" element={<DashboardWrapperWithRoleCheck />} />
+        <Route path="/employee-dashboard/:id" element={<DashboardWrapper logout={logout} />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
