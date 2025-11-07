@@ -357,7 +357,9 @@ const AdminDashboard = ({ logout }) => {
       .map(a =>
         `${a.employee.full_name || a.employee.username} (${
           a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'
-        } - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateAssignmentDuration(a)})`
+        } - ${
+          a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'
+        }, ${calculateAssignmentDuration(a)})`
       )
       .join('\n');
   };
@@ -546,12 +548,15 @@ const AdminDashboard = ({ logout }) => {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-        {/* Add Employee */}
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
             <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Employee</h2>
-            <input type="text" placeholder="Full Name" value={newEmployeeName} onChange={e => setNewEmployeeName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
-            <input type="email" placeholder="Email" value={newEmployeeEmail} onChange={e => setNewEmployeeEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
+            <div style={{ width: '100%' }}>
+              <input type="text" placeholder="Full Name" value={newEmployeeName} onChange={e => setNewEmployeeName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ width: '100%' }}>
+              <input type="email" placeholder="Email" value={newEmployeeEmail} onChange={e => setNewEmployeeEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
+            </div>
             <select value={newEmployeeRole} onChange={e => setNewEmployeeRole(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }}>
               <option value="Employee">Employee</option>
               <option value="Manager">Manager</option>
@@ -562,20 +567,20 @@ const AdminDashboard = ({ logout }) => {
             {loadingEmployee ? 'Adding...' : 'Add Employee'}
           </button>
         </div>
-
-        {/* Add Site */}
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
             <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Add Site</h2>
-            <input type="text" placeholder="Site Name" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
-            <input type="text" placeholder="American Address (e.g., 123 Main St, City, State ZIP)" value={newSiteAddress} onChange={e => setNewSiteAddress(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
+            <div style={{ width: '100%' }}>
+              <input type="text" placeholder="Site Name" value={newSiteName} onChange={e => setNewSiteName(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ width: '100%' }}>
+              <input type="text" placeholder="American Address (e.g., 123 Main St, City, State ZIP)" value={newSiteAddress} onChange={e => setNewSiteAddress(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', boxSizing: 'border-box' }} />
+            </div>
           </div>
           <button onClick={addSite} disabled={loadingSite} style={{ width: '100%', background: '#48bb78', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>
             {loadingSite ? 'Adding...' : 'Add Site'}
           </button>
         </div>
-
-        {/* Assign Sites */}
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
             <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Assign Sites to Employee</h2>
@@ -598,15 +603,17 @@ const AdminDashboard = ({ logout }) => {
                 </label>
               ))}
             </div>
-            <DatePicker selected={newAssignStart} onChange={date => setNewAssignStart(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="Start Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border mb-3" popperClassName="z-50" />
-            <DatePicker selected={newAssignEnd} onChange={date => setNewAssignEnd(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="End Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" popperClassName="z-50" />
+            <div style={{ width: '100%', marginBottom: '1rem' }}>
+              <DatePicker selected={newAssignStart} onChange={date => setNewAssignStart(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="Start Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" popperClassName="z-50" />
+            </div>
+            <div style={{ width: '100%', marginBottom: '1rem' }}>
+              <DatePicker selected={newAssignEnd} onChange={date => setNewAssignEnd(date)} showTimeSelect dateFormat="MMMM d, yyyy h:mm aa" placeholderText="End Date (optional)" className="w-full p-3 border border-gray-300 rounded-md box-border" popperClassName="z-50" />
+            </div>
           </div>
-          <button onClick={assignSites} disabled={loadingAssign} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1rem' }}>
+          <button onClick={assignSites} disabled={loadingAssign} style={{ width: '100%', background: '#4299e1', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}>
             {loadingAssign ? 'Assigning...' : 'Assign Sites'}
           </button>
         </div>
-
-        {/* Employees List */}
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', gridColumn: '1 / -1' }}>
           <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Employees</h2>
           <ul style={{ listStyleType: 'none' }}>
@@ -623,14 +630,14 @@ const AdminDashboard = ({ logout }) => {
                     </div>
                   )}
                 </div>
-                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <span>Name:</span>
-                  <input type="text" defaultValue={emp.full_name || ''} onBlur={e => debouncedUpdateProfile(emp.id, 'full_name', e.target.value)} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', flex: '1 1 150px' }} />
-                  <span>Daily Work Hours:</span>
-                  <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => debouncedUpdateProfile(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
-                  <span>Start:</span>
-                  <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => debouncedUpdateProfile(emp.id, 'daily_start', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
-                  <span>End:</span>
+                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ marginRight: '0.5rem' }}>Name:</span>
+                  <input type="text" defaultValue={emp.full_name || ''} onBlur={e => debouncedUpdateProfile(emp.id, 'full_name', e.target.value)} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem', flex: '1' }} />
+                  <span style={{ marginRight: '0.5rem' }}>Daily Work Hours:</span>
+                  <input type="number" defaultValue={emp.work_hours || 8} onBlur={e => debouncedUpdateProfile(emp.id, 'work_hours', e.target.value)} style={{ width: '50px', padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
+                  <span style={{ marginRight: '0.5rem' }}>Start:</span>
+                  <input type="time" defaultValue={emp.daily_start || '09:00'} onBlur={e => debouncedUpdateProfile(emp.id, 'daily_start', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem', marginRight: '1rem' }} />
+                  <span style={{ marginRight: '0.5rem' }}>End:</span>
                   <input type="time" defaultValue={emp.daily_end || '17:00'} onBlur={e => debouncedUpdateProfile(emp.id, 'daily_end', e.target.value + ':00')} style={{ padding: '0.25rem', border: '1px solid #e2e8f0', borderRadius: '0.25rem' }} />
                 </div>
               </li>
@@ -638,13 +645,207 @@ const AdminDashboard = ({ logout }) => {
           </ul>
         </div>
       </div>
-
-      {/* Rest of the file (Assignments, Time Entries, etc.) remains unchanged */}
-      {/* ... (omitted for brevity — keep your existing code below this line) ... */}
-
-      <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>
-        Logout
-      </button>
+      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Employee Assignments</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Start</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>End</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Duration</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedAssignments.map((assign, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '0.5rem' }}>{assign.employee?.full_name || assign.employee?.username || 'Unknown'}</td>
+                <td style={{ padding: '0.5rem' }}>{assign.site?.name || 'Unknown'}</td>
+                <td style={{ padding: '0.5rem' }}>{assign.start_date ? new Date(assign.start_date).toLocaleString() : 'N/A'}</td>
+                <td style={{ padding: '0.5rem' }}>{assign.end_date ? new Date(assign.end_date).toLocaleString() : 'N/A'}</td>
+                <td style={{ padding: '0.5rem' }}>{calculateAssignmentDuration(assign)}</td>
+                <td style={{ padding: '0.5rem' }}>
+                  {currentUserRole === 'Admin' && (
+                    <button onClick={() => deleteAssignment(assign.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+          <button disabled={assignmentsPage === 1} onClick={() => setAssignmentsPage(prev => prev - 1)} style={{ marginRight: '1rem', padding: '0.25rem 0.5rem', background: assignmentsPage === 1 ? '#e2e8f0' : '#4299e1', color: 'white', border: 'none', cursor: 'pointer' }}>Prev</button>
+          <button disabled={assignmentsPage * itemsPerPage >= assignments.length} onClick={() => setAssignmentsPage(prev => prev + 1)} style={{ padding: '0.25rem 0.5rem', background: assignmentsPage * itemsPerPage >= assignments.length ? '#e2e8f0' : '#4299e1', color: 'white', border: 'none', cursor: 'pointer' }}>Next</button>
+        </div>
+      </div>
+      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Time Entries</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Clock In</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Clock Out</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedTimeEntries.map((entry, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '0.5rem' }}>{entry.employee?.full_name || entry.employee?.username || 'Unknown'}</td>
+                <td style={{ padding: '0.5rem' }}>{entry.site?.name || 'Unknown'}</td>
+                <td style={{ padding: '0.5rem' }}>{new Date(entry.clock_in_time).toLocaleString()}</td>
+                <td style={{ padding: '0.5rem' }}>{entry.clock_out_time ? new Date(entry.clock_out_time).toLocaleString() : 'N/A'}</td>
+                <td style={{ padding: '0.5rem' }}>{calculateEntryDuration(entry)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+          <button disabled={timeEntriesPage === 1} onClick={() => setTimeEntriesPage(prev => prev - 1)} style={{ marginRight: '1rem', padding: '0.25rem 0.5rem', background: timeEntriesPage === 1 ? '#e2e8f0' : '#4299e1', color: 'white', border: 'none', cursor: 'pointer' }}>Prev</button>
+          <button disabled={timeEntriesPage * itemsPerPage >= timeEntries.length} onClick={() => setTimeEntriesPage(prev => prev + 1)} style={{ padding: '0.25rem 0.5rem', background: timeEntriesPage * itemsPerPage >= timeEntries.length ? '#e2e8f0' : '#4299e1', color: 'white', border: 'none', cursor: 'pointer' }}>Next</button>
+        </div>
+      </div>
+      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Name</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Address</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sites.map((site, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '0.5rem' }}>{site.name}</td>
+                <td style={{ padding: '0.5rem' }}>{site.address}</td>
+                <td style={{ padding: '0.5rem' }}>
+                  {currentUserRole === 'Admin' && (
+                    <button onClick={() => deleteSite(site.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Sites Map</h2>
+        <MapContainer center={[37.0902, -95.7129]} zoom={4} style={{ height: '400px', width: '100%' }}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <MapBounds sites={sites} />
+          {sites.map(site => site.lat && site.lon && (
+            <Marker key={site.id} position={[site.lat, site.lon]}>
+              <Popup>
+                {site.name} - {site.address}<br />
+                Assigned Employees:<br />
+                {getSiteAssignments(site.id) || 'None'}
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
+      <div style={{ marginTop: '1.5rem', background: 'white', padding: '1.5rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ color: '#2d3748', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>Reports</h2>
+        <div style={{ display: 'flex', marginBottom: '1rem' }}>
+          <div style={{ marginRight: '1rem' }}>
+            <DatePicker selected={reportStart} onChange={date => {
+              const startOfDay = new Date(date);
+              startOfDay.setHours(0, 0, 0, 0);
+              setReportStart(startOfDay);
+            }} dateFormat="MMMM d, yyyy" placeholderText="Start Date" className="p-2 border border-gray-300 rounded-md" popperClassName="z-50" />
+          </div>
+          <div>
+            <DatePicker selected={reportEnd} onChange={date => {
+              const endOfDay = new Date(date);
+              endOfDay.setHours(23, 59, 59, 999);
+              setReportEnd(endOfDay);
+            }} dateFormat="MMMM d, yyyy" placeholderText="End Date" className="p-2 border border-gray-300 rounded-md" popperClassName="z-50" />
+          </div>
+        </div>
+        {(!reportStart || !reportEnd) && <p style={{ color: '#9b2c2c', marginBottom: '1rem' }}>Please select a date range to view reports.</p>}
+        {reportStart && reportEnd && (
+          <div style={{ display: 'flex', marginBottom: '1rem' }}>
+            <button onClick={() => setReportTab('comparison')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'comparison' ? '#4299e1' : '#e2e8f0', color: reportTab === 'comparison' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Worked vs Scheduled</button>
+            <button onClick={() => setReportTab('timelines')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'timelines' ? '#4299e1' : '#e2e8f0', color: reportTab === 'timelines' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Efficiency Timelines</button>
+            <button onClick={() => setReportTab('payroll')} style={{ padding: '0.5rem 1rem', background: reportTab === 'payroll' ? '#4299e1' : '#e2e8f0', color: reportTab === 'payroll' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Payroll Report</button>
+          </div>
+        )}
+        {reportStart && reportEnd && reportTab === 'comparison' && (
+          <>
+            <button onClick={exportComparison} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Worked Hours</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Scheduled Hours</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Variance</th>
+                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Efficiency (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparisonData.map((row, index) => (
+                  <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '0.5rem' }}>{row.employee}</td>
+                    <td style={{ padding: '0.5rem' }}>{row.site}</td>
+                    <td style={{ padding: '0.5rem' }}>{row.worked.toFixed(2)}</td>
+                    <td style={{ padding: '0.5rem' }}>{row.scheduled.toFixed(2)}</td>
+                    <td style={{ padding: '0.5rem' }}>{row.variance.toFixed(2)}</td>
+                    <td style={{ padding: '0.5rem' }}>{row.efficiency}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+        {reportStart && reportEnd && reportTab === 'timelines' && (
+          <>
+            <button onClick={exportTimelines} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
+            {employees.map(emp => (
+              <div key={emp.id} style={{ marginBottom: '2rem' }}>
+                <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}> {emp.full_name || emp.username} Efficiency Timeline</h3>
+                <Line data={getEfficiencyData(emp.id)} options={{ responsive: true, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Efficiency Over Assignments' } } }} />
+              </div>
+            ))}
+          </>
+        )}
+        {reportStart && reportEnd && reportTab === 'payroll' && (
+          <>
+            <button onClick={exportPayroll} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
+            {payrollData.map((group, groupIndex) => (
+              <div key={groupIndex} style={{ marginBottom: '1rem' }}>
+                <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600' }}>{group.site}</h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                      <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem' }}>Budgeted Hours</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem' }}>Logged Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.employees.map((emp, empIndex) => (
+                      <tr key={empIndex} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '0.5rem' }}>{emp.employee}</td>
+                        <td style={{ padding: '0.5rem' }}>{emp.budgeted.toFixed(2)}</td>
+                        <td style={{ padding: '0.5rem' }}>{emp.logged.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+      <button onClick={logout} style={{ background: '#f56565', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer', marginTop: '1.5rem' }}>Logout</button>
     </div>
   );
 };
