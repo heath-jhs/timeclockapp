@@ -619,12 +619,12 @@ const AdminDashboard = ({ logout }) => {
           <ul style={{ listStyleType: 'none' }}>
             {employees.map(emp => (
               <li key={emp.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     {emp.full_name ? `${emp.full_name} (${emp.username})` : emp.username} ({emp.role || 'Employee'})
                   </div>
                   {currentUserRole === 'Admin' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button onClick={() => viewEmployeeDashboard(emp.id)} style={{ background: '#4299e1', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>View Dashboard</button>
                       <button onClick={() => deleteEmployee(emp.id)} style={{ background: '#f56565', color: 'white', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Delete</button>
                     </div>
@@ -770,44 +770,43 @@ const AdminDashboard = ({ logout }) => {
         </div>
         {(!reportStart || !reportEnd) && <p style={{ color: '#9b2c2c', marginBottom: '1rem' }}>Please select a date range to view reports.</p>}
         {reportStart && reportEnd && (
-          <div style={{ display: 'flex', marginBottom: '1rem' }}>
-            <button onClick={() => setReportTab('comparison')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'comparison' ? '#4299e1' : '#e2e8f0', color: reportTab === 'comparison' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Worked vs Scheduled</button>
-            <button onClick={() => setReportTab('timelines')} style={{ marginRight: '1rem', padding: '0.5rem 1rem', background: reportTab === 'timelines' ? '#4299e1' : '#e2e8f0', color: reportTab === 'timelines' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Efficiency Timelines</button>
-            <button onClick={() => setReportTab('payroll')} style={{ padding: '0.5rem 1rem', background: reportTab === 'payroll' ? '#4299e1' : '#e2e8f0', color: reportTab === 'payroll' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Payroll Report</button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={() => setReportTab('comparison')} style={{ padding: '0.5rem 1rem', background: reportTab === 'comparison' ? '#4299e1' : '#e2e8f0', color: reportTab === 'comparison' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Worked vs Scheduled</button>
+              <button onClick={() => setReportTab('timelines')} style={{ padding: '0.5rem 1rem', background: reportTab === 'timelines' ? '#4299e1' : '#e2e8f0', color: reportTab === 'timelines' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Efficiency Timelines</button>
+              <button onClick={() => setReportTab('payroll')} style={{ padding: '0.5rem 1rem', background: reportTab === 'payroll' ? '#4299e1' : '#e2e8f0', color: reportTab === 'payroll' ? 'white' : '#2d3748', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Payroll Report</button>
+            </div>
+            <button onClick={reportTab === 'comparison' ? exportComparison : reportTab === 'timelines' ? exportTimelines : exportPayroll} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}>Export to Excel</button>
           </div>
         )}
         {reportStart && reportEnd && reportTab === 'comparison' && (
-          <>
-            <button onClick={exportComparison} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Worked Hours</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Scheduled Hours</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Variance</th>
-                  <th style={{ textAlign: 'left', padding: '0.5rem' }}>Efficiency (%)</th>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Employee</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Site</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Worked Hours</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Scheduled Hours</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Variance</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Efficiency (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparisonData.map((row, index) => (
+                <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '0.5rem' }}>{row.employee}</td>
+                  <td style={{ padding: '0.5rem' }}>{row.site}</td>
+                  <td style={{ padding: '0.5rem' }}>{row.worked.toFixed(2)}</td>
+                  <td style={{ padding: '0.5rem' }}>{row.scheduled.toFixed(2)}</td>
+                  <td style={{ padding: '0.5rem' }}>{row.variance.toFixed(2)}</td>
+                  <td style={{ padding: '0.5rem' }}>{row.efficiency}%</td>
                 </tr>
-              </thead>
-              <tbody>
-                {comparisonData.map((row, index) => (
-                  <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '0.5rem' }}>{row.employee}</td>
-                    <td style={{ padding: '0.5rem' }}>{row.site}</td>
-                    <td style={{ padding: '0.5rem' }}>{row.worked.toFixed(2)}</td>
-                    <td style={{ padding: '0.5rem' }}>{row.scheduled.toFixed(2)}</td>
-                    <td style={{ padding: '0.5rem' }}>{row.variance.toFixed(2)}</td>
-                    <td style={{ padding: '0.5rem' }}>{row.efficiency}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
+              ))}
+            </tbody>
+          </table>
         )}
         {reportStart && reportEnd && reportTab === 'timelines' && (
           <>
-            <button onClick={exportTimelines} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
             {employees.map(emp => (
               <div key={emp.id} style={{ marginBottom: '2rem' }}>
                 <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600', marginBottom: '0.5rem' }}> {emp.full_name || emp.username} Efficiency Timeline</h3>
@@ -818,7 +817,6 @@ const AdminDashboard = ({ logout }) => {
         )}
         {reportStart && reportEnd && reportTab === 'payroll' && (
           <>
-            <button onClick={exportPayroll} style={{ background: '#48bb78', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', marginBottom: '1rem' }}>Export to Excel</button>
             {payrollData.map((group, groupIndex) => (
               <div key={groupIndex} style={{ marginBottom: '1rem' }}>
                 <h3 style={{ color: '#2d3748', fontSize: '1rem', fontWeight: '600' }}>{group.site}</h3>
