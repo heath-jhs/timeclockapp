@@ -149,39 +149,10 @@ const App = () => {
 
   const role = user.app_metadata?.role || 'Employee';
 
-  const DashboardWrapper = ({ logout }) => {
-    const { id } = useParams();
-    const [targetRole, setTargetRole] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-      const fetchTargetRole = async () => {
-        try {
-          const { data: profile, error } = await supabase.from('profiles').select('role').eq('id', id).single();
-          if (error) throw error;
-          setTargetRole(profile.role);
-        } catch (err) {
-          console.error('Failed to fetch target role:', err);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchTargetRole();
-    }, [id]);
-
-    if (loading) return <div>Loading dashboard...</div>;
-
-    if (targetRole === 'Admin' || targetRole === 'Manager') {
-      return <AdminDashboard logout={logout} />;
-    } else {
-      return <EmployeeDashboard logout={logout} userId={id} />;
-    }
-  };
-
-  const DashboardWrapperWithRoleCheck = () => {
+  const EmployeeDashboardWrapper = () => {
     const { id } = useParams();
     if (role !== 'Admin' && id) return <Navigate to="/" />;
-    return <DashboardWrapper logout={logout} />;
+    return <EmployeeDashboard logout={logout} userId={id ? id : undefined} />;
   };
 
   return (
@@ -189,7 +160,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={role === 'Admin' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
         <Route path="/set-password" element={<SetPassword />} />
-        <Route path="/employee-dashboard/:id" element={<DashboardWrapperWithRoleCheck />} />
+        <Route path="/employee-dashboard/:id" element={<EmployeeDashboardWrapper />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
