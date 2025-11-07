@@ -334,7 +334,17 @@ const diff = (end - start) / (1000 * 60 * 60);
 return diff.toFixed(2) + ' hours';
 };
 const getSiteAssignments = (siteId) => {
-return assignments.filter(a => a.site_id === siteId).map(a => ${a.employee.full_name || a.employee.username} (${a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'} - ${a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'}, ${calculateAssignmentDuration(a)}).join('\n');
+  return assignments
+    .filter(a => a.site_id === siteId)
+    .map(a => 
+      `${a.employee.full_name || a.employee.username} (${
+        a.start_date ? new Date(a.start_date).toLocaleString() : 'N/A'
+      } - ${
+        a.end_date ? new Date(a.end_date).toLocaleString() : 'N/A'
+      }, ${calculateAssignmentDuration(a)})`
+    )
+    .join('\n');
+}
 };
 const sortSites = (sites, sortType) => {
 if (sortType === 'A-Z') {
