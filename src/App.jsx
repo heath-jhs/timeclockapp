@@ -9,9 +9,10 @@ const App = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [user, setUser] = useState(null);
+  const [role, setRole] = useState('Employee'); // New state for role from profiles
   const [error, setError] = useState(null);
   const [appError, setAppError] = useState(null);
-  const [loadingSession, setLoadingSession] = useState(true); // New loader state
+  const [loadingSession, setLoadingSession] = useState(true);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -25,6 +26,11 @@ const App = () => {
 
           setUser(user);
 
+          // Fetch role from profiles
+          const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+          if (profileError) throw profileError;
+          setRole(profile.role || 'Employee');
+
           const params = new URLSearchParams(window.location.search);
           const type = params.get('type');
           if (type === 'signup' || type === 'invite') {
@@ -37,7 +43,7 @@ const App = () => {
         console.error('Session check failed:', err);
         setAppError(err.message);
       } finally {
-        setLoadingSession(false); // End loading after check
+        setLoadingSession(false);
       }
     };
 
@@ -46,6 +52,8 @@ const App = () => {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user);
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+        setRole(profile?.role || 'Employee');
         const params = new URLSearchParams(window.location.search);
         const type = params.get('type');
         if (type === 'signup' || type === 'invite') {
@@ -53,6 +61,7 @@ const App = () => {
         }
       } else {
         setUser(null);
+        setRole('Employee');
       }
     });
 
@@ -88,6 +97,8 @@ const App = () => {
 
       const { data: refreshed } = await supabase.auth.getUser();
       setUser(refreshed.user);
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', refreshed.user.id).single();
+      setRole(profile?.role || 'Employee');
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -98,6 +109,7 @@ const App = () => {
     try {
       await supabase.auth.signOut();
       setUser(null);
+      setRole('Employee');
     } catch (err) {
       console.error('Logout error:', err);
       setAppError(err.message);
@@ -117,7 +129,7 @@ const App = () => {
   }
 
   if (loadingSession) {
-    return <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>; // Prevent flash
+    return <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>;
   }
 
   if (!user) {
@@ -153,8 +165,6 @@ const App = () => {
     );
   }
 
-  const role = user.app_metadata?.role || 'Employee';
-
   const EmployeeDashboardWrapper = () => {
     const { id } = useParams();
     if (role !== 'Admin' && id) return <Navigate to="/" />;
@@ -164,7 +174,7 @@ const App = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={role === 'Admin' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
+        <Route path="/" element={role === 'Admin' || role === 'Manager' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
         <Route path="/set-password" element={<SetPassword />} />
         <Route path="/employee-dashboard/:id" element={<EmployeeDashboardWrapper />} />
         <Route path="*" element={<Navigate to="/" />} />
