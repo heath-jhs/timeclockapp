@@ -20,6 +20,8 @@ const App = () => {
 
   useEffect(() => {
     let mounted = true;
+    let authUnsubscribe = null;
+
     const checkSession = async () => {
       try {
         console.log('App: Checking session and hash...');
@@ -36,26 +38,31 @@ const App = () => {
             console.log('App: Processing invite hash...');
             setHashProcessed(true);
 
-            // Wait for auth state change instead of racing setSession
+            // Wait for SIGNED_IN event with long timeout
             const authPromise = new Promise((resolve, reject) => {
-              const timeout = setTimeout(() => reject(new Error('Auth state timeout')), 60000);
-              const unsubscribe = supabase.auth.onAuthStateChange((event, session) => {
+              const timeout = setTimeout(() => {
+                reject(new Error('Auth state timeout after 60s'));
+              }, 60000);
+
+              authUnsubscribe = supabase.auth.onAuthStateChange((event, session) => {
                 if (event === 'SIGNED_IN' && session?.user) {
                   clearTimeout(timeout);
-                  unsubscribe.subscription.unsubscribe();
+                  console.log('App: SIGNED_IN event received, user:', session.user.id);
                   resolve(session);
                 }
               });
             });
 
-            // Trigger setSession to start the flow
-            await supabase.auth.setSession({
+            // Fire setSession to trigger the flow
+            supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken
-            }).catch(() => {}); // Ignore error, wait for state change
+            }).catch(err => {
+              console.warn('App: setSession() failed but waiting for SIGNED_IN:', err);
+            });
 
             const session = await authPromise;
-            console.log('App: Session established via auth state, user:', session.user.id);
+            console.log('App: Session established via SIGNED_IN event');
 
             window.history.replaceState({}, '', '/set-password');
             if (mounted) {
@@ -67,7 +74,7 @@ const App = () => {
           }
         }
 
-        // Normal session check
+        // Normal session check if no hash or already processed
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
@@ -106,8 +113,9 @@ const App = () => {
 
     checkSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('App: Auth state changed:', event);
+    // Global auth listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('App: Global auth state changed:', event);
       if (session?.user) {
         setUser(session.user);
         try {
@@ -121,7 +129,7 @@ const App = () => {
             navigate('/set-password');
           }
         } catch (err) {
-          console.error('App: Profile fetch in auth listener failed:', err);
+          console.error('App: Profile fetch in global listener failed:', err);
         }
       } else {
         setUser(null);
@@ -130,7 +138,8 @@ const App = () => {
 
     return () => {
       mounted = false;
-      authListener.subscription.unsubscribe();
+      if (authUnsubscribe) authUnsubscribe.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, [navigate, location, hashProcessed]);
 
