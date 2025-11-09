@@ -46,7 +46,7 @@ const SetPassword = () => {
     try {
       console.log('Updating user password...');
       const updatePromise = supabase.auth.updateUser({ password });
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000));
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000)); // Increased to 15s
       const { error: updateError } = await Promise.race([updatePromise, timeoutPromise]);
       if (updateError) throw updateError;
       console.log('Password updated');
@@ -101,7 +101,7 @@ const SetPassword = () => {
           onChange={e => setPhone(e.target.value)}
           style={{ width: '100%', padding: '0.75rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
         />
-        <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1.5rem' }}>E.164 format (e.g., +1234567890).</p>
+        <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1.5rem' }}>e.g., +1234567890</p>
         <button
           type="submit"
           disabled={loading}
