@@ -1,9 +1,16 @@
+// src/supabaseClient.js
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Singleton with check to prevent multiples
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Supabase URL or Anon Key missing!');
+  console.error('Expected: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+  console.error('Found:', { supabaseUrl, supabaseAnonKey });
+  throw new Error('Supabase configuration missing. Check environment variables.');
+}
+
 let supabaseInstance = null;
 
 function getSupabase() {
@@ -16,9 +23,7 @@ function getSupabase() {
         detectSessionInUrl: true
       }
     });
-    console.log('Supabase client initialized once'); // Debug single init
-  } else {
-    console.log('Reusing existing Supabase client'); // Debug reuse
+    console.log('Supabase client initialized');
   }
   return supabaseInstance;
 }
