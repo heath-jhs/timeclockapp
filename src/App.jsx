@@ -38,7 +38,7 @@ const App = () => {
               access_token: accessToken,
               refresh_token: refreshToken
             });
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Set session timeout')), 15000));
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Set session timeout')), 30000));
             const { error: setSessionError } = await Promise.race([setSessionPromise, timeoutPromise]);
             if (setSessionError) throw setSessionError;
             console.log('Session set from hash');
@@ -54,7 +54,7 @@ const App = () => {
             console.warn('Session check timed out');
             setLoadingSession(false);
           }
-        }, 5000);  // Reduced to 5s
+        }, 30000);  // Increased to 30s
 
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         clearTimeout(timeout);
