@@ -16,7 +16,7 @@ const App = () => {
   const [appError, setAppError] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [hashProcessed, setHashProcessed] = useState(false);
-  const initRef = useRef(false); // ← PREVENT DOUBLE INIT
+  const initRef = useRef(false);
 
   useEffect(() => {
     if (initRef.current) return;
@@ -29,7 +29,6 @@ const App = () => {
       try {
         console.log('App: Initializing auth flow...');
 
-        // 1. Handle invite hash ONCE
         if (location.hash && !hashProcessed) {
           const hash = location.hash.substring(1);
           const params = new URLSearchParams(hash);
@@ -46,7 +45,6 @@ const App = () => {
           }
         }
 
-        // 2. Normal session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
         if (!session?.user) {
@@ -54,7 +52,6 @@ const App = () => {
           return;
         }
 
-        // 3. Profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, has_password')
@@ -85,7 +82,6 @@ const App = () => {
 
     initializeAuth();
 
-    // Global listener
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
