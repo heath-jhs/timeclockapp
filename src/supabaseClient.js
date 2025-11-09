@@ -5,10 +5,11 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase URL or Anon Key missing!');
-  console.error('Expected: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
-  console.error('Found:', { supabaseUrl, supabaseAnonKey });
-  throw new Error('Supabase configuration missing. Check environment variables.');
+  console.error('FATAL: Supabase configuration missing');
+  console.error('Required: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
+  console.error('Found URL:', supabaseUrl);
+  console.error('Found Key:', supabaseAnonKey ? '[present]' : '[missing]');
+  throw new Error('Supabase env vars missing. Check Netlify Environment Variables.');
 }
 
 let supabaseInstance = null;
@@ -23,7 +24,7 @@ function getSupabase() {
         detectSessionInUrl: true
       }
     });
-    console.log('Supabase client initialized');
+    console.log('Supabase client initialized successfully');
   }
   return supabaseInstance;
 }
