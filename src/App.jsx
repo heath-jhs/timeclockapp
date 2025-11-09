@@ -34,11 +34,14 @@ const App = () => {
 
           if ((type === 'signup' || type === 'invite' || type === 'recovery') && accessToken && refreshToken) {
             console.log('Processing invite hash...');
-            const { error: setSessionError } = await supabase.auth.setSession({
+            const setSessionPromise = supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken
             });
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Set session timeout')), 15000));
+            const { error: setSessionError } = await Promise.race([setSessionPromise, timeoutPromise]);
             if (setSessionError) throw setSessionError;
+            console.log('Session set from hash');
 
             // Clear hash but stay on /set-password
             window.history.replaceState({}, '', '/set-password');
@@ -75,7 +78,7 @@ const App = () => {
         }
       } catch (err) {
         console.error('Session error:', err);
-        setAppError(err.message);
+        setAppError(err.message || 'Timeout - try again');
       } finally {
         if (mounted) setLoadingSession(false);
       }
