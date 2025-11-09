@@ -25,6 +25,40 @@ const App = () => {
     let mounted = true;
     let authListener = null;
 
+    // Set global listener FIRST
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      console.log('App: Auth event:', event);
+
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUser(session.user);
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, has_password')
+            .eq('id', session.user.id)
+            .single();
+
+          setRole(profile?.role || 'Employee');
+
+          if (!profile?.has_password) {
+            navigate('/set-password', { replace: true });
+          } else if (location.pathname === '/set-password') {
+            navigate('/', { replace: true });
+          }
+        } catch (err) {
+          console.error('Profile load error:', err);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setRole('Employee');
+        navigate('/', { replace: true });
+      }
+    });
+
+    authListener = listener;
+
     const initializeAuth = async () => {
       try {
         console.log('App: Initializing auth flow...');
@@ -39,22 +73,9 @@ const App = () => {
           if ((type === 'signup' || type === 'invite' || type === 'recovery') && accessToken && refreshToken) {
             console.log('App: Processing invite hash...');
             setHashProcessed(true);
-
-            // Wait for SIGNED_IN
-            const signedInPromise = new Promise((resolve, reject) => {
-              const unsubscribe = supabase.auth.onAuthStateChange((event, session) => {
-                if (event === 'SIGNED_IN' && session?.user) {
-                  unsubscribe?.subscription?.unsubscribe();
-                  resolve(session);
-                }
-              });
-              setTimeout(() => reject(new Error('SIGNED_IN timeout')), 30000);
-            });
-
             const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
             if (error) throw error;
-
-            await signedInPromise;
+            // No need to wait — listener will catch SIGNED_IN
             window.history.replaceState({}, '', '/set-password');
             return;
           }
@@ -95,40 +116,6 @@ const App = () => {
     };
 
     initializeAuth();
-
-    // Global listener (separate from invite-specific one)
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-
-      console.log('App: Auth event:', event);
-
-      if (event === 'SIGNED_IN' && session?.user) {
-        setUser(session.user);
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role, has_password')
-            .eq('id', session.user.id)
-            .single();
-
-          setRole(profile?.role || 'Employee');
-
-          if (!profile?.has_password) {
-            navigate('/set-password', { replace: true });
-          } else if (location.pathname === '/set-password') {
-            navigate('/', { replace: true });
-          }
-        } catch (err) {
-          console.error('Profile load error:', err);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setRole('Employee');
-        navigate('/', { replace: true });
-      }
-    });
-
-    authListener = listener;
 
     return () => {
       mounted = false;
