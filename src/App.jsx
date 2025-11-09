@@ -29,7 +29,7 @@ const App = () => {
       try {
         console.log('App: Initializing auth flow...');
 
-        // Handle invite hash
+        // 1. Handle invite hash FIRST
         if (location.hash && !hashProcessed) {
           const hash = location.hash.substring(1);
           const params = new URLSearchParams(hash);
@@ -47,7 +47,7 @@ const App = () => {
           }
         }
 
-        // Get session
+        // 2. Get session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
@@ -56,7 +56,7 @@ const App = () => {
           return;
         }
 
-        // Get profile
+        // 3. Get profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, has_password')
