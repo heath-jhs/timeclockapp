@@ -11,19 +11,11 @@ const SetPassword = () => {
   const [userId, setUserId] = useState(null);
   const navigate = useNavigate();
 
-  const getUserWithTimeout = () => {
-    return Promise.race([
-      supabase.auth.getUser(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('getUser timeout')), 15000))
-    ]);
-  };
-
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        console.log('SetPassword: Fetching user...');
-        const { data: { user }, error: userError } = await getUserWithTimeout();
-        if (userError) throw userError;
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) throw error;
         if (!user) throw new Error('No session');
         setUserId(user.id);
         window.history.replaceState({}, '', '/set-password');
@@ -58,7 +50,7 @@ const SetPassword = () => {
 
       navigate('/', { replace: true });
     } catch (err) {
-      setError(err.message.includes('timeout') ? 'Timed out. Try again.' : err.message);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
