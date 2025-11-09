@@ -19,12 +19,11 @@ const App = () => {
 
   useEffect(() => {
     let mounted = true;
-
     const checkSession = async () => {
       try {
-        console.log('Checking session and hash...');
+        console.log('App: Checking session and hash...');
 
-        // Handle invite/confirmation hash
+        // Handle invite/confirmation hash FIRST
         if (location.hash) {
           const hash = location.hash.substring(1);
           const params = new URLSearchParams(hash);
@@ -33,52 +32,68 @@ const App = () => {
           const refreshToken = params.get('refresh_token');
 
           if ((type === 'signup' || type === 'invite' || type === 'recovery') && accessToken && refreshToken) {
-            console.log('Processing invite hash...');
+            console.log('App: Processing invite hash...');
             const setSessionPromise = supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken
             });
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Set session timeout')), 30000));
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('setSession() timed out')), 15000)
+            );
             const { error: setSessionError } = await Promise.race([setSessionPromise, timeoutPromise]);
             if (setSessionError) throw setSessionError;
-            console.log('Session set from hash');
 
-            // Clear hash but stay on /set-password
+            console.log('App: Session set from hash, redirecting to /set-password');
             window.history.replaceState({}, '', '/set-password');
+            if (mounted) {
+              setLoadingSession(false);
+              navigate('/set-password', { replace: true });
+            }
             return;
           }
         }
 
-        const timeout = setTimeout(() => {
-          if (mounted) {
-            console.warn('Session check timed out');
-            setLoadingSession(false);
-          }
-        }, 30000);  // Increased to 30s
-
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        clearTimeout(timeout);
-
+        // Normal session check
+        const getSessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('getSession() timed out')), 15000)
+        );
+        const { data: { session }, error: sessionError } = await Promise.race([getSessionPromise, timeoutPromise]);
         if (sessionError) throw sessionError;
 
         if (session?.user && mounted) {
+          console.log('App: Session found, user:', session.user.id);
           setUser(session.user);
-          const { data: profile, error: profileError } = await supabase
+          const profilePromise = supabase
             .from('profiles')
             .select('role, has_password')
             .eq('id', session.user.id)
             .single();
+          const profileTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile fetch timed out')), 10000)
+          );
+          const { data: profile, error: profileError } = await Promise.race([profilePromise, profileTimeout]);
           if (profileError) throw profileError;
+
           setRole(profile.role || 'Employee');
-          if (!profile.has_password) {
+          if (!profile.has, setLoadingSession(false);
+          if (!profile.has_password && location.pathname !== '/set-password') {
+            console.log('App: User has no password, redirecting to /set-password');
             navigate('/set-password');
           }
         } else {
+          console.log('App: No session found');
           setUser(null);
         }
       } catch (err) {
-        console.error('Session error:', err);
-        setAppError(err.message || 'Timeout - try again');
+        console.error('App: Session check failed:', err);
+        if (mounted) {
+          setAppError(
+            err.message.includes('timed out') 
+              ? 'Connection timeout. Check your internet and try again.'
+              : err.message || 'Failed to load session'
+          );
+        }
       } finally {
         if (mounted) setLoadingSession(false);
       }
@@ -87,6 +102,7 @@ const App = () => {
     checkSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('App: Auth state changed:', event);
       if (session?.user) {
         setUser(session.user);
         const { data: profile } = await supabase
@@ -95,7 +111,7 @@ const App = () => {
           .eq('id', session.user.id)
           .single();
         setRole(profile?.role || 'Employee');
-        if (!profile?.has_password) {
+        if (!profile?.has_password && location.pathname !== '/set-password') {
           navigate('/set-password');
         }
       } else {
@@ -135,10 +151,13 @@ const App = () => {
 
   if (appError) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <h1 style={{ color: '#dc2626' }}>Error</h1>
-        <p>{appError}</p>
-        <button onClick={() => window.location.reload()} style={{ background: '#3b82f6', color: 'white', padding: '12px 24px', borderRadius: '8px', border: 'none' }}>
+      <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
+        <h1 style={{ color: '#dc2626', marginBottom: '1rem' }}>Error</h1>
+        <p style={{ marginBottom: '1.5rem', color: '#374151' }}>{appError}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          style={{ background: '#3b82f6', color: 'white', padding: '12px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+        >
           Retry
         </button>
       </div>
@@ -147,8 +166,8 @@ const App = () => {
 
   if (loadingSession) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <h2>Loading Session...</h2>
+      <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
+        <h2 style={{ marginBottom: '1rem' }}>Loading Session...</h2>
         <p style={{ color: '#6b7280' }}>Be patient while we access your user account...</p>
       </div>
     );
@@ -156,12 +175,33 @@ const App = () => {
 
   if (!user) {
     return (
-      <div style={{ padding: '40px', maxWidth: '400px', margin: '0 auto' }}>
+      <div style={{ padding: '40px', maxWidth: '400px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
         <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', textAlign: 'center', marginBottom: '2rem' }}>Login</h1>
-        {error && <div style={{ background: '#fee2e2', color: '#991b1b', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>{error}</div>}
-        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} />
-        <button onClick={login} style={{ width: '100%', background: '#22c55e', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none' }}>Login</button>
+        {error && (
+          <div style={{ background: '#fee2e2', color: '#991b1b', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem' }}>
+            {error}
+          </div>
+        )}
+        <input 
+          type="email" 
+          placeholder="Email" 
+          value={email} 
+          onChange={e => setEmail(e.target.value)} 
+          style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} 
+        />
+        <input 
+          type="password" 
+          placeholder="Password" 
+          value={password} 
+          onChange={e => setPassword(e.target.value)} 
+          style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} 
+        />
+        <button 
+          onClick={login} 
+          style={{ width: '100%', background: '#22c55e', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}
+        >
+          Login
+        </button>
       </div>
     );
   }
