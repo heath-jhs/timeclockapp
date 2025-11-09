@@ -29,7 +29,7 @@ const App = () => {
       try {
         console.log('App: Initializing auth flow...');
 
-        // 1. Handle invite hash FIRST
+        // Handle invite hash
         if (location.hash && !hashProcessed) {
           const hash = location.hash.substring(1);
           const params = new URLSearchParams(hash);
@@ -47,7 +47,7 @@ const App = () => {
           }
         }
 
-        // 2. Get session
+        // Get session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
@@ -56,7 +56,7 @@ const App = () => {
           return;
         }
 
-        // 3. Get profile
+        // Get profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, has_password')
@@ -147,6 +147,7 @@ const App = () => {
     await supabase.auth.signOut();
     setUser(null);
     setRole('Employee');
+    navigate('/', { replace: true });
   };
 
   if (appError) {
