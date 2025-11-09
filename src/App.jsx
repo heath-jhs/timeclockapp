@@ -26,7 +26,7 @@ const App = () => {
       try {
         console.log('App: Initializing auth flow...');
 
-        // Handle invite/confirmation hash FIRST
+        // 1. Handle invite hash FIRST
         if (location.hash && !hashProcessed) {
           const hash = location.hash.substring(1);
           const params = new URLSearchParams(hash);
@@ -35,26 +35,22 @@ const App = () => {
           const refreshToken = params.get('refresh_token');
 
           if ((type === 'signup' || type === 'invite' || type === 'recovery') && accessToken && refreshToken) {
-            console.log('App: Processing auth hash...');
+            console.log('App: Processing invite hash...');
             setHashProcessed(true);
-
-            // Set session to trigger SIGNED_IN
             await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-
-            // Clean URL and wait for listener
             window.history.replaceState({}, '', '/set-password');
-            return;
+            return; // Wait for SIGNED_IN
           }
         }
 
-        // Normal session check
+        // 2. Normal session check
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) {
           if (mounted) setLoadingSession(false);
           return;
         }
 
-        // Load profile
+        // 3. Load profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, has_password')
@@ -66,15 +62,17 @@ const App = () => {
         if (mounted) {
           setUser(session.user);
           setRole(profile.role || 'Employee');
-          if (!profile.has_password && location.pathname !== '/set-password') {
-            navigate('/set-password');
+
+          // 4. Redirect logic
+          if (!profile.has_password) {
+            navigate('/set-password', { replace: true });
+          } else if (location.pathname === '/set-password') {
+            navigate('/', { replace: true });
           }
         }
       } catch (err) {
         console.error('App: Auth init error:', err);
-        if (mounted) {
-          setAppError(err.message || 'Failed to initialize session');
-        }
+        if (mounted) setAppError(err.message || 'Session failed');
       } finally {
         if (mounted) setLoadingSession(false);
       }
@@ -82,9 +80,8 @@ const App = () => {
 
     initializeAuth();
 
-    // SINGLE global listener
+    // Global listener
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('App: Auth event:', event);
       if (!mounted) return;
 
       if (event === 'SIGNED_IN' && session?.user) {
@@ -95,11 +92,13 @@ const App = () => {
             .select('role, has_password')
             .eq('id', session.user.id)
             .single();
+
           setRole(profile?.role || 'Employee');
-          if (!profile?.has_password && location.pathname !== '/set-password') {
-            navigate('/set-password');
-          } else if (location.pathname === '/set-password' && profile?.has_password) {
-            navigate('/');
+
+          if (!profile?.has_password) {
+            navigate('/set-password', { replace: true });
+          } else if (location.pathname === '/set-password') {
+            navigate('/', { replace: true });
           }
         } catch (err) {
           console.error('Profile load error:', err);
@@ -115,9 +114,7 @@ const App = () => {
 
     return () => {
       mounted = false;
-      if (authListener?.subscription?.unsubscribe) {
-        authListener.subscription.unsubscribe();
-      }
+      authListener?.subscription?.unsubscribe();
     };
   }, [navigate, location, hashProcessed]);
 
@@ -202,18 +199,10 @@ const App = () => {
     );
   }
 
-  const EmployeeDashboardWrapper = () => {
-    const urlParams = new URLSearchParams(location.search);
-    const id = urlParams.get('id') || null;
-    if (role !== 'Admin' && id) return <Navigate to="/" />;
-    return <EmployeeDashboard logout={logout} userId={id} />;
-  };
-
   return (
     <Routes>
       <Route path="/" element={role === 'Admin' || role === 'Manager' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
       <Route path="/set-password" element={<SetPassword />} />
-      <Route path="/employee-dashboard" element={<EmployeeDashboardWrapper />} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
