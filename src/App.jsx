@@ -44,7 +44,9 @@ const App = () => {
         }
 
         // 2. Normal session check
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+
         if (!session?.user) {
           if (mounted) setLoadingSession(false);
           return;
@@ -65,7 +67,9 @@ const App = () => {
 
           // 4. Redirect logic
           if (!profile.has_password) {
-            navigate('/set-password', { replace: true });
+            if (location.pathname !== '/set-password') {
+              navigate('/set-password', { replace: true });
+            }
           } else if (location.pathname === '/set-password') {
             navigate('/', { replace: true });
           }
@@ -83,6 +87,8 @@ const App = () => {
     // Global listener
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
+
+      console.log('App: Auth event:', event);
 
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
