@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Route, Routes, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import AdminDashboard from './components/AdminDashboard';
@@ -16,19 +16,20 @@ const App = () => {
   const [appError, setAppError] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [hashProcessed, setHashProcessed] = useState(false);
+  const initRef = useRef(false); // ← PREVENT DOUBLE INIT
 
   useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
+
     let mounted = true;
     let authListener = null;
-    let hasInitialized = false;
 
     const initializeAuth = async () => {
-      if (hasInitialized) return;
-      hasInitialized = true;
-
       try {
         console.log('App: Initializing auth flow...');
 
+        // 1. Handle invite hash ONCE
         if (location.hash && !hashProcessed) {
           const hash = location.hash.substring(1);
           const params = new URLSearchParams(hash);
@@ -45,14 +46,15 @@ const App = () => {
           }
         }
 
+        // 2. Normal session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
-
         if (!session?.user) {
           if (mounted) setLoadingSession(false);
           return;
         }
 
+        // 3. Profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, has_password')
@@ -83,8 +85,9 @@ const App = () => {
 
     initializeAuth();
 
+    // Global listener
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted || !hasInitialized) return;
+      if (!mounted) return;
 
       console.log('App: Auth event:', event);
 
