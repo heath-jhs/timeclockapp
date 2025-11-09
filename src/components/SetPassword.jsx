@@ -16,7 +16,9 @@ const SetPassword = () => {
     const fetchUser = async () => {
       try {
         console.log('Fetching user...');
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        const getUserPromise = supabase.auth.getUser();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Get user timeout')), 15000));
+        const { data: { user }, error: userError } = await Promise.race([getUserPromise, timeoutPromise]);
         if (userError) throw userError;
         if (user) {
           setUserId(user.id);
@@ -26,7 +28,7 @@ const SetPassword = () => {
         }
       } catch (err) {
         console.error('Fetch user error:', err);
-        setError(err.message);
+        setError(err.message || 'Timeout - try again');
       }
     };
     fetchUser();
@@ -46,16 +48,18 @@ const SetPassword = () => {
     try {
       console.log('Updating user password...');
       const updatePromise = supabase.auth.updateUser({ password });
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 15000)); // Increased to 15s
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Update timeout')), 15000));
       const { error: updateError } = await Promise.race([updatePromise, timeoutPromise]);
       if (updateError) throw updateError;
       console.log('Password updated');
 
       console.log('Updating profile...');
-      const { error: profileError } = await supabase
+      const profilePromise = supabase
         .from('profiles')
         .update({ phone_number: phone, has_password: true })
         .eq('id', userId);
+      const profileTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Profile timeout')), 15000));
+      const { error: profileError } = await Promise.race([profilePromise, profileTimeout]);
       if (profileError) throw profileError;
       console.log('Profile updated');
 
