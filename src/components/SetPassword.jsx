@@ -31,7 +31,7 @@ const SetPassword = () => {
         window.history.replaceState({}, '', '/set-password');
       } catch (err) {
         console.error('SetPassword: fetchUser failed:', err);
-        setError(err.message.includes('timeout') ? 'Connection slow. Retrying...' : err.message);
+        setError(err.message.includes('timeout') ? 'Connection slow. Retrying...' : 'Invalid invite link. Request a new one.');
       }
     };
     fetchUser();
@@ -41,36 +41,49 @@ const SetPassword = () => {
     e.preventDefault();
     if (!userId) return setError('Session not ready');
     if (password !== confirmPassword) return setError('Passwords do not match');
-    if (password.length < 6) return setError('Password must be 6+ characters');
+    if (password.length < 8) return setError('Password must be at least 8 characters');
 
     setLoading(true);
     setError(null);
     try {
       console.log('SetPassword: Updating password...');
-      const { error: pwdError } = await Promise.race([
-        supabase.auth.updateUser({ password }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('update timeout')), 30000))
-      ]);
+      const { error: pwdError } = await supabase.auth.updateUser({ password });
       if (pwdError) throw pwdError;
 
       console.log('SetPassword: Updating profile...');
-      const { error: profileError } = await Promise.race([
-        supabase.from('profiles').update({ phone_number: phone || null, has_password: true }).eq('id', userId),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('profile timeout')), 30000))
-      ]);
-      if (profileError) throw profileError;
+      const updateData = { has_password: true };
+      if (phone) updateData.phone_number = phone;
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', userId);
+
+      if (profileError) {
+        if (profileError.code === 'PGRST204') {
+          console.warn('SetPassword: phone_number column missing. Skipping phone update.');
+        } else {
+          throw profileError;
+        }
+      }
 
       alert('Password set! Redirecting...');
       navigate('/');
     } catch (err) {
       console.error('SetPassword: Error:', err);
-      setError(err.message.includes('timeout') ? 'Request timed out. Try again.' : err.message);
+      const msg = err.message || 'Unknown error';
+      setError(
+        msg.includes('timeout') ? 'Request timed out. Try again.' :
+        msg.includes('PGRST204') ? 'Phone number field not found. Password saved.' :
+        msg.includes('AuthWeakPasswordError') ? 'Password must be at least 8 characters.' :
+        msg
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  if (error && error.includes('No user session')) {
+  if (error && error.includes('Invalid invite link')) {
     return (
       <div style={{ padding: '40px', maxWidth: '500px', margin: '0 auto', textAlign: 'center' }}>
         <div style={{ background: '#fee2e2', color: '#991b1b', padding: '1.5rem', borderRadius: '0.5rem', marginBottom: '2rem' }}>
@@ -100,11 +113,12 @@ const SetPassword = () => {
           placeholder="New Password"
           value={password}
           onChange={e => setPassword(e.target.value)}
-          style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          style={{ width: '100%', padding: '0.75rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
           required
           disabled={loading}
         />
-        <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: '0.25rem 0 1rem 0' }}>6+ characters</p>
+        <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: '0.25rem 0 1rem 0' }}>8+ characters</p>
+
         <input
           type="password"
           placeholder="Confirm Password"
@@ -114,6 +128,7 @@ const SetPassword = () => {
           required
           disabled={loading}
         />
+
         <input
           type="tel"
           placeholder="Phone (optional)"
@@ -123,6 +138,7 @@ const SetPassword = () => {
           disabled={loading}
         />
         <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>e.g., +15551234567</p>
+
         <button
           type="submit"
           disabled={loading || !userId}
