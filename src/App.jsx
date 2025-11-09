@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { Route, Routes, Navigate, useParams, useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
@@ -14,56 +15,79 @@ const App = () => {
   const [error, setError] = useState(null);
   const [appError, setAppError] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
     const checkSession = async () => {
       try {
-        if (window.location.hash) {
-          const hash = window.location.hash.substring(1);
-          const params = new URLSearchParams(hash);
-          const type = params.get('type');
-          const accessToken = params.get('access_token');
-          const refreshToken = params.get('refresh_token');
-          if ((type === 'signup' || type === 'invite') && accessToken && refreshToken) {
-            const { error: setSessionError } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-            if (setSessionError) throw setSessionError;
-            history.replaceState(null, null, window.location.pathname);
+        console.log('Checking Supabase session...');
+
+        // Force a timeout after 8 seconds
+        const timeout = setTimeout(() => {
+          console.warn('Session check timed out — forcing login screen');
+          if (mounted) {
+            setLoadingSession(false);
+            setSessionChecked(true);
           }
-        }
+        }, 8000);
 
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
 
-        if (session) {
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
-          if (userError) throw userError;
-          setUser(user);
+        clearTimeout(timeout);
 
-          const { data: profile, error: profileError } = await supabase.from('profiles').select('role, has_password').eq('id', user.id).single();
-          if (profileError) throw profileError;
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          throw sessionError;
+        }
+
+        if (session?.user && mounted) {
+          console.log('Session found:', session.user.email);
+          setUser(session.user);
+
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role, has_password')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) {
+            console.error('Profile fetch error:', profileError);
+            throw profileError;
+          }
 
           setRole(profile.role || 'Employee');
+
           if (!profile.has_password) {
             navigate('/set-password');
-            return;
           }
         } else {
+          console.log('No session — showing login');
           setUser(null);
         }
       } catch (err) {
         console.error('Session check failed:', err);
-        setAppError(err.message);
+        setAppError(`Session error: ${err.message}`);
       } finally {
-        setLoadingSession(false);
+        if (mounted) {
+          setLoadingSession(false);
+          setSessionChecked(true);
+        }
       }
     };
 
     checkSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
       if (session?.user) {
         setUser(session.user);
-        const { data: profile } = await supabase.from('profiles').select('role, has_password').eq('id', session.user.id).single();
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, has_password')
+          .eq('id', session.user.id)
+          .single();
         setRole(profile?.role || 'Employee');
         if (!profile?.has_password) {
           navigate('/set-password');
@@ -74,49 +98,53 @@ const App = () => {
       }
     });
 
-    return () => authListener.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      authListener.subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const login = async () => {
     try {
+      setError(null);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+
       const { data: refreshed } = await supabase.auth.getUser();
       setUser(refreshed.user);
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', refreshed.user.id).single();
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', refreshed.user.id)
+        .single();
+
       setRole(profile?.role || 'Employee');
-      setError(null);
     } catch (err) {
       setError(err.message);
     }
   };
 
   const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      setRole('Employee');
-    } catch (err) {
-      console.error('Logout error:', err);
-      setAppError(err.message);
-    }
+    await supabase.auth.signOut();
+    setUser(null);
+    setRole('Employee');
   };
 
+  // Show error
   if (appError) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
-        <h1 style={{ color: '#dc2626' }}>Application Error</h1>
-        <p style={{ margin: '20px 0', color: '#374151' }}>{appError}</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          style={{ background: '#3b82f6', color: 'white', padding: '12px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
-        >
+        <h1 style={{ color: '#dc2626' }}>App Error</h1>
+        <p style={{ margin: '20px 0' }}>{appError}</p>
+        <button onClick={() => window.location.reload()} style={{ background: '#3b82f6', color: 'white', padding: '12px 24px', borderRadius: '8px', border: 'none' }}>
           Retry
         </button>
       </div>
     );
   }
 
+  // Show loading (max 8s)
   if (loadingSession) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
@@ -128,6 +156,7 @@ const App = () => {
     );
   }
 
+  // Show login if no user
   if (!user) {
     return (
       <div style={{ padding: '40px', maxWidth: '400px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
@@ -152,7 +181,7 @@ const App = () => {
           style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
         />
         <button 
-          onClick={login} 
+          onClick={login}
           style={{ width: '100%', background: '#22c55e', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}
         >
           Login
