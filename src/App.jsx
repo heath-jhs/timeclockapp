@@ -147,7 +147,6 @@ const App = () => {
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <h2>Loading Session...</h2>
         <p style={{ color: '#6b7280' }}>Be patient while we access your user account...</p>
-        <p style={{ color: '#6b7280' }}>Open console (F12) if stuck.</p>
       </div>
     );
   }
