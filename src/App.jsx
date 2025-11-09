@@ -138,8 +138,12 @@ const App = () => {
 
     return () => {
       mounted = false;
-      if (authUnsubscribe) authUnsubscribe.subscription.unsubscribe();
-      subscription.unsubscribe();
+      if (authUnsubscribe && typeof authUnsubscribe.subscription.unsubscribe === 'function') {
+        authUnsubscribe.subscription.unsubscribe();
+      }
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+      }
     };
   }, [navigate, location, hashProcessed]);
 
