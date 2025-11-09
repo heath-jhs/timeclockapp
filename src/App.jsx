@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { Route, Routes, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from './supabaseClient';
@@ -21,12 +20,15 @@ const App = () => {
   useEffect(() => {
     let mounted = true;
     let authListener = null;
+    let hasInitialized = false;
 
     const initializeAuth = async () => {
+      if (hasInitialized) return;
+      hasInitialized = true;
+
       try {
         console.log('App: Initializing auth flow...');
 
-        // 1. Handle invite hash FIRST
         if (location.hash && !hashProcessed) {
           const hash = location.hash.substring(1);
           const params = new URLSearchParams(hash);
@@ -39,11 +41,10 @@ const App = () => {
             setHashProcessed(true);
             await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
             window.history.replaceState({}, '', '/set-password');
-            return; // Wait for SIGNED_IN
+            return;
           }
         }
 
-        // 2. Normal session check
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
@@ -52,7 +53,6 @@ const App = () => {
           return;
         }
 
-        // 3. Load profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, has_password')
@@ -65,7 +65,6 @@ const App = () => {
           setUser(session.user);
           setRole(profile.role || 'Employee');
 
-          // 4. Redirect logic
           if (!profile.has_password) {
             if (location.pathname !== '/set-password') {
               navigate('/set-password', { replace: true });
@@ -84,9 +83,8 @@ const App = () => {
 
     initializeAuth();
 
-    // Global listener
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
+      if (!mounted || !hasInitialized) return;
 
       console.log('App: Auth event:', event);
 
