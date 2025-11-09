@@ -25,13 +25,11 @@ const SetPassword = () => {
         console.log('SetPassword: Fetching user...');
         const { data: { user }, error: userError } = await getUserWithTimeout();
         if (userError) throw userError;
-        if (!user) throw new Error('No user session');
-        console.log('SetPassword: User loaded:', user.id);
+        if (!user) throw new Error('No session');
         setUserId(user.id);
         window.history.replaceState({}, '', '/set-password');
       } catch (err) {
-        console.error('SetPassword: fetchUser failed:', err);
-        setError(err.message.includes('timeout') ? 'Connection slow. Retrying...' : 'Invalid invite link. Request a new one.');
+        setError('Invalid link. Request a new invite.');
       }
     };
     fetchUser();
@@ -39,18 +37,16 @@ const SetPassword = () => {
 
   const handleSetPassword = async (e) => {
     e.preventDefault();
-    if (!userId) return setError('Session not ready');
+    if (!userId) return;
     if (password !== confirmPassword) return setError('Passwords do not match');
-    if (password.length < 8) return setError('Password must be at least 8 characters');
+    if (password.length < 8) return setError('Password must be 8+ characters');
 
     setLoading(true);
     setError(null);
     try {
-      console.log('SetPassword: Updating password...');
       const { error: pwdError } = await supabase.auth.updateUser({ password });
       if (pwdError) throw pwdError;
 
-      console.log('SetPassword: Updating profile...');
       const updateData = { has_password: true };
       if (phone) updateData.phone_number = phone;
 
@@ -59,31 +55,19 @@ const SetPassword = () => {
         .update(updateData)
         .eq('id', userId);
 
-      if (profileError) {
-        if (profileError.code === 'PGRST204') {
-          console.warn('SetPassword: phone_number column missing. Skipping phone update.');
-        } else {
-          throw profileError;
-        }
-      }
+      if (profileError && profileError.code !== 'PGRST204') throw profileError;
 
-      alert('Password set! Redirecting...');
-      navigate('/');
+      alert('Password set! Logging you in...');
+      // DO NOT sign out — keep session
+      navigate('/', { replace: true });
     } catch (err) {
-      console.error('SetPassword: Error:', err);
-      const msg = err.message || 'Unknown error';
-      setError(
-        msg.includes('timeout') ? 'Request timed out. Try again.' :
-        msg.includes('PGRST204') ? 'Phone number field not found. Password saved.' :
-        msg.includes('AuthWeakPasswordError') ? 'Password must be at least 8 characters.' :
-        msg
-      );
+      setError(err.message.includes('timeout') ? 'Timed out. Try again.' : err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  if (error && error.includes('Invalid invite link')) {
+  if (error && error.includes('Invalid link')) {
     return (
       <div style={{ padding: '40px', maxWidth: '500px', margin: '0 auto', textAlign: 'center' }}>
         <div style={{ background: '#fee2e2', color: '#991b1b', padding: '1.5rem', borderRadius: '0.5rem', marginBottom: '2rem' }}>
