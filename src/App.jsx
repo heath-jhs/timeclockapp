@@ -51,7 +51,7 @@ const App = () => {
             console.warn('Session check timed out');
             setLoadingSession(false);
           }
-        }, 8000);
+        }, 5000);  // Reduced to 5s
 
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         clearTimeout(timeout);
@@ -146,6 +146,7 @@ const App = () => {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <h2>Loading Session...</h2>
+        <p style={{ color: '#6b7280' }}>Be patient while we access your user account...</p>
         <p style={{ color: '#6b7280' }}>Open console (F12) if stuck.</p>
       </div>
     );
