@@ -1,5 +1,0 @@
-# Force all routes to index.html for React Router
-/*    /index.html   200
-
-# Explicit fallback for common paths
-/set-password   /index.html   200
