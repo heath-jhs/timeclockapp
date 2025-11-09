@@ -34,14 +34,15 @@ const App = () => {
 
           if ((type === 'signup' || type === 'invite' || type === 'recovery') && accessToken && refreshToken) {
             console.log('App: Processing invite hash...');
-            setHashProcessed(true); // Prevent double-processing
+            setHashProcessed(true);
 
+            // Use longer timeout for setSession
             const setSessionPromise = supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken
             });
             const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('setSession() timed out')), 10000)
+              setTimeout(() => reject(new Error('setSession() timed out')), 30000)
             );
             const { error: setSessionError } = await Promise.race([setSessionPromise, timeoutPromise]);
             if (setSessionError) throw setSessionError;
@@ -56,10 +57,10 @@ const App = () => {
           }
         }
 
-        // Normal session check only if no hash or already processed
+        // Normal session check
         const getSessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('getSession() timed out')), 10000)
+          setTimeout(() => reject(new Error('getSession() timed out')), 15000)
         );
         const { data: { session }, error: sessionError } = await Promise.race([getSessionPromise, timeoutPromise]);
         if (sessionError) throw sessionError;
@@ -73,7 +74,7 @@ const App = () => {
             .eq('id', session.user.id)
             .single();
           const profileTimeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Profile fetch timed out')), 10000)
+            setTimeout(() => reject(new Error('Profile fetch timed out')), 15000)
           );
           const { data: profile, error: profileError } = await Promise.race([profilePromise, profileTimeout]);
           if (profileError) throw profileError;
