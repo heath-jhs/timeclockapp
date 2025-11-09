@@ -48,12 +48,6 @@ const SetPassword = () => {
 
       if (profileError && profileError.code !== 'PGRST204') throw profileError;
 
-      // Force session refresh
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await supabase.auth.setSession(session);
-      }
-
       navigate('/', { replace: true });
     } catch (err) {
       setError(err.message);
