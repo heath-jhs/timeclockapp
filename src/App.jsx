@@ -29,6 +29,7 @@ const App = () => {
       try {
         console.log('App: Initializing auth flow...');
 
+        // Handle invite hash ONCE
         if (location.hash && !hashProcessed) {
           const hash = location.hash.substring(1);
           const params = new URLSearchParams(hash);
@@ -39,19 +40,23 @@ const App = () => {
           if ((type === 'signup' || type === 'invite' || type === 'recovery') && accessToken && refreshToken) {
             console.log('App: Processing invite hash...');
             setHashProcessed(true);
-            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+            const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+            if (error) throw error;
             window.history.replaceState({}, '', '/set-password');
             return;
           }
         }
 
+        // Get session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
+
         if (!session?.user) {
           if (mounted) setLoadingSession(false);
           return;
         }
 
+        // Get profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, has_password')
@@ -64,11 +69,10 @@ const App = () => {
           setUser(session.user);
           setRole(profile.role || 'Employee');
 
-          if (!profile.has_password) {
-            if (location.pathname !== '/set-password') {
-              navigate('/set-password', { replace: true });
-            }
-          } else if (location.pathname === '/set-password') {
+          // Redirect logic
+          if (!profile.has_password && location.pathname !== '/set-password') {
+            navigate('/set-password', { replace: true });
+          } else if (profile.has_password && location.pathname === '/set-password') {
             navigate('/', { replace: true });
           }
         }
@@ -82,6 +86,7 @@ const App = () => {
 
     initializeAuth();
 
+    // Global listener
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
