@@ -29,7 +29,7 @@ const App = () => {
       try {
         console.log('App: Initializing auth flow...');
 
-        // Handle invite hash ONCE
+        // Handle invite hash
         if (location.hash && !hashProcessed) {
           const hash = location.hash.substring(1);
           const params = new URLSearchParams(hash);
@@ -69,7 +69,6 @@ const App = () => {
           setUser(session.user);
           setRole(profile.role || 'Employee');
 
-          // Redirect logic
           if (!profile.has_password && location.pathname !== '/set-password') {
             navigate('/set-password', { replace: true });
           } else if (profile.has_password && location.pathname === '/set-password') {
