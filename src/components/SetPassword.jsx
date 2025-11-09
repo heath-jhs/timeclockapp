@@ -38,11 +38,18 @@ const SetPassword = () => {
       setError('Passwords do not match');
       return;
     }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
     setLoading(true);
     try {
       console.log('Updating user password...');
-      const { error: updateError } = await supabase.auth.updateUser({ password });
+      const updatePromise = supabase.auth.updateUser({ password });
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000));
+      const { error: updateError } = await Promise.race([updatePromise, timeoutPromise]);
       if (updateError) throw updateError;
+      console.log('Password updated');
 
       console.log('Updating profile...');
       const { error: profileError } = await supabase
@@ -50,12 +57,12 @@ const SetPassword = () => {
         .update({ phone_number: phone, has_password: true })
         .eq('id', userId);
       if (profileError) throw profileError;
+      console.log('Profile updated');
 
-      console.log('Success — redirecting');
       navigate('/');
     } catch (err) {
       console.error('Set password error:', err);
-      setError(err.message);
+      setError(err.message || 'Timeout - please try again');
     } finally {
       setLoading(false);
     }
@@ -75,9 +82,10 @@ const SetPassword = () => {
           placeholder="New Password"
           value={password}
           onChange={e => setPassword(e.target.value)}
-          style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          style={{ width: '100%', padding: '0.75rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
           required
         />
+        <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1rem' }}>Password must be at least 6 characters.</p>
         <input
           type="password"
           placeholder="Confirm Password"
@@ -91,8 +99,9 @@ const SetPassword = () => {
           placeholder="Phone Number (optional)"
           value={phone}
           onChange={e => setPhone(e.target.value)}
-          style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+          style={{ width: '100%', padding: '0.75rem', marginBottom: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
         />
+        <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1.5rem' }}>E.164 format (e.g., +1234567890).</p>
         <button
           type="submit"
           disabled={loading}
