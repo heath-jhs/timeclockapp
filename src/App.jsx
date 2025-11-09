@@ -29,7 +29,6 @@ const App = () => {
       try {
         console.log('App: Initializing auth flow...');
 
-        // Handle invite hash
         if (location.hash && !hashProcessed) {
           const hash = location.hash.substring(1);
           const params = new URLSearchParams(hash);
@@ -40,14 +39,27 @@ const App = () => {
           if ((type === 'signup' || type === 'invite' || type === 'recovery') && accessToken && refreshToken) {
             console.log('App: Processing invite hash...');
             setHashProcessed(true);
+
+            // Wait for SIGNED_IN
+            const signedInPromise = new Promise((resolve, reject) => {
+              const unsubscribe = supabase.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_IN' && session?.user) {
+                  unsubscribe?.subscription?.unsubscribe();
+                  resolve(session);
+                }
+              });
+              setTimeout(() => reject(new Error('SIGNED_IN timeout')), 30000);
+            });
+
             const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
             if (error) throw error;
+
+            await signedInPromise;
             window.history.replaceState({}, '', '/set-password');
             return;
           }
         }
 
-        // Get session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
@@ -56,7 +68,6 @@ const App = () => {
           return;
         }
 
-        // Get profile
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, has_password')
@@ -85,7 +96,7 @@ const App = () => {
 
     initializeAuth();
 
-    // Global listener
+    // Global listener (separate from invite-specific one)
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
@@ -147,7 +158,6 @@ const App = () => {
     await supabase.auth.signOut();
     setUser(null);
     setRole('Employee');
-    navigate('/', { replace: true });
   };
 
   if (appError) {
