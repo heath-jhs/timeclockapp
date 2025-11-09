@@ -1,4 +1,3 @@
-// src/components/SetPassword.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -56,14 +55,6 @@ const SetPassword = () => {
         .eq('id', userId);
 
       if (profileError && profileError.code !== 'PGRST204') throw profileError;
-
-      // Force re-check via signOut + signIn
-      await supabase.auth.signOut();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: (await supabase.auth.getUser()).data.user?.email,
-        password
-      });
-      if (signInError) throw signInError;
 
       navigate('/', { replace: true });
     } catch (err) {
