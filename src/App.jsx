@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { Route, Routes, Navigate, useParams, useNavigate, useLocation } from 'react-router-dom';
+import { Route, Routes, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import AdminDashboard from './components/AdminDashboard';
 import EmployeeDashboard from './components/EmployeeDashboard';
@@ -20,11 +20,11 @@ const App = () => {
 
   useEffect(() => {
     let mounted = true;
-    let authUnsubscribe = null;
+    let authListener = null;
 
-    const checkSession = async () => {
+    const initializeAuth = async () => {
       try {
-        console.log('App: Checking session and hash...');
+        console.log('App: Initializing auth flow...');
 
         // Handle invite/confirmation hash FIRST
         if (location.hash && !hashProcessed) {
@@ -35,88 +35,59 @@ const App = () => {
           const refreshToken = params.get('refresh_token');
 
           if ((type === 'signup' || type === 'invite' || type === 'recovery') && accessToken && refreshToken) {
-            console.log('App: Processing invite hash...');
+            console.log('App: Processing auth hash...');
             setHashProcessed(true);
 
-            // Wait for SIGNED_IN event with long timeout
-            const authPromise = new Promise((resolve, reject) => {
-              const timeout = setTimeout(() => {
-                reject(new Error('Auth state timeout after 60s'));
-              }, 60000);
+            // Set session to trigger SIGNED_IN
+            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
 
-              authUnsubscribe = supabase.auth.onAuthStateChange((event, session) => {
-                if (event === 'SIGNED_IN' && session?.user) {
-                  clearTimeout(timeout);
-                  console.log('App: SIGNED_IN event received, user:', session.user.id);
-                  resolve(session);
-                }
-              });
-            });
-
-            // Fire setSession to trigger the flow
-            supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken
-            }).catch(err => {
-              console.warn('App: setSession() failed but waiting for SIGNED_IN:', err);
-            });
-
-            const session = await authPromise;
-            console.log('App: Session established via SIGNED_IN event');
-
+            // Clean URL and wait for listener
             window.history.replaceState({}, '', '/set-password');
-            if (mounted) {
-              setUser(session.user);
-              setLoadingSession(false);
-              navigate('/set-password', { replace: true });
-            }
             return;
           }
         }
 
-        // Normal session check if no hash or already processed
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
+        // Normal session check
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          if (mounted) setLoadingSession(false);
+          return;
+        }
 
-        if (session?.user && mounted) {
-          console.log('App: Session found, user:', session.user.id);
+        // Load profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, has_password')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError) throw profileError;
+
+        if (mounted) {
           setUser(session.user);
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('role, has_password')
-            .eq('id', session.user.id)
-            .single();
-          if (profileError) throw profileError;
-
           setRole(profile.role || 'Employee');
           if (!profile.has_password && location.pathname !== '/set-password') {
-            console.log('App: User has no password, redirecting to /set-password');
             navigate('/set-password');
           }
-        } else {
-          console.log('App: No session found');
-          setUser(null);
         }
       } catch (err) {
-        console.error('App: Session check failed:', err);
+        console.error('App: Auth init error:', err);
         if (mounted) {
-          setAppError(
-            err.message.includes('timed out') 
-              ? 'Connection timeout. Check your internet and try again.'
-              : err.message || 'Failed to load session'
-          );
+          setAppError(err.message || 'Failed to initialize session');
         }
       } finally {
         if (mounted) setLoadingSession(false);
       }
     };
 
-    checkSession();
+    initializeAuth();
 
-    // Global auth listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('App: Global auth state changed:', event);
-      if (session?.user) {
+    // SINGLE global listener
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('App: Auth event:', event);
+      if (!mounted) return;
+
+      if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user);
         try {
           const { data: profile } = await supabase
@@ -127,22 +98,25 @@ const App = () => {
           setRole(profile?.role || 'Employee');
           if (!profile?.has_password && location.pathname !== '/set-password') {
             navigate('/set-password');
+          } else if (location.pathname === '/set-password' && profile?.has_password) {
+            navigate('/');
           }
         } catch (err) {
-          console.error('App: Profile fetch in global listener failed:', err);
+          console.error('Profile load error:', err);
         }
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
+        setRole('Employee');
+        navigate('/', { replace: true });
       }
     });
 
+    authListener = listener;
+
     return () => {
       mounted = false;
-      if (authUnsubscribe && typeof authUnsubscribe.subscription.unsubscribe === 'function') {
-        authUnsubscribe.subscription.unsubscribe();
-      }
-      if (subscription && typeof subscription.unsubscribe === 'function') {
-        subscription.unsubscribe();
+      if (authListener?.subscription?.unsubscribe) {
+        authListener.subscription.unsubscribe();
       }
     };
   }, [navigate, location, hashProcessed]);
@@ -176,8 +150,8 @@ const App = () => {
       <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
         <h1 style={{ color: '#dc2626', marginBottom: '1rem' }}>Error</h1>
         <p style={{ marginBottom: '1.5rem', color: '#374151' }}>{appError}</p>
-        <button 
-          onClick={() => window.location.reload()} 
+        <button
+          onClick={() => window.location.reload()}
           style={{ background: '#3b82f6', color: 'white', padding: '12px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
         >
           Retry
@@ -190,7 +164,7 @@ const App = () => {
     return (
       <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
         <h2 style={{ marginBottom: '1rem' }}>Loading Session...</h2>
-        <p style={{ color: '#6b7280' }}>Be patient while we access your user account...</p>
+        <p style={{ color: '#6b7280' }}>Please wait while we connect to your account...</p>
       </div>
     );
   }
@@ -204,22 +178,22 @@ const App = () => {
             {error}
           </div>
         )}
-        <input 
-          type="email" 
-          placeholder="Email" 
-          value={email} 
-          onChange={e => setEmail(e.target.value)} 
-          style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} 
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
         />
-        <input 
-          type="password" 
-          placeholder="Password" 
-          value={password} 
-          onChange={e => setPassword(e.target.value)} 
-          style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }} 
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
         />
-        <button 
-          onClick={login} 
+        <button
+          onClick={login}
           style={{ width: '100%', background: '#22c55e', color: 'white', padding: '0.75rem', borderRadius: '0.375rem', border: 'none', cursor: 'pointer' }}
         >
           Login
@@ -229,7 +203,8 @@ const App = () => {
   }
 
   const EmployeeDashboardWrapper = () => {
-    const { id } = useParams();
+    const urlParams = new URLSearchParams(location.search);
+    const id = urlParams.get('id') || null;
     if (role !== 'Admin' && id) return <Navigate to="/" />;
     return <EmployeeDashboard logout={logout} userId={id} />;
   };
@@ -238,7 +213,7 @@ const App = () => {
     <Routes>
       <Route path="/" element={role === 'Admin' || role === 'Manager' ? <AdminDashboard logout={logout} /> : <EmployeeDashboard logout={logout} />} />
       <Route path="/set-password" element={<SetPassword />} />
-      <Route path="/employee-dashboard/:id" element={<EmployeeDashboardWrapper />} />
+      <Route path="/employee-dashboard" element={<EmployeeDashboardWrapper />} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
