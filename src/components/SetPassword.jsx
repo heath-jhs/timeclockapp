@@ -57,8 +57,14 @@ const SetPassword = () => {
 
       if (profileError && profileError.code !== 'PGRST204') throw profileError;
 
-      alert('Password set! Logging you in...');
-      // DO NOT sign out — keep session
+      // Force re-check via signOut + signIn
+      await supabase.auth.signOut();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: (await supabase.auth.getUser()).data.user?.email,
+        password
+      });
+      if (signInError) throw signInError;
+
       navigate('/', { replace: true });
     } catch (err) {
       setError(err.message.includes('timeout') ? 'Timed out. Try again.' : err.message);
