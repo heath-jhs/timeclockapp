@@ -17,9 +17,10 @@ const SetPassword = () => {
       try {
         console.log('Fetching user...');
         const getUserPromise = supabase.auth.getUser();
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Get user timeout')), 15000));
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Get user timeout')), 30000));
         const { data: { user }, error: userError } = await Promise.race([getUserPromise, timeoutPromise]);
         if (userError) throw userError;
+        console.log('User fetched:', user ? user.email : 'No user');
         if (user) {
           setUserId(user.id);
           window.history.replaceState({}, '', '/set-password');
@@ -36,6 +37,10 @@ const SetPassword = () => {
 
   const handleSetPassword = async (e) => {
     e.preventDefault();
+    if (!userId) {
+      setError('User not loaded – refresh page');
+      return;
+    }
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -48,7 +53,7 @@ const SetPassword = () => {
     try {
       console.log('Updating user password...');
       const updatePromise = supabase.auth.updateUser({ password });
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Update timeout')), 15000));
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Update timeout')), 30000));
       const { error: updateError } = await Promise.race([updatePromise, timeoutPromise]);
       if (updateError) throw updateError;
       console.log('Password updated');
@@ -58,7 +63,7 @@ const SetPassword = () => {
         .from('profiles')
         .update({ phone_number: phone, has_password: true })
         .eq('id', userId);
-      const profileTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Profile timeout')), 15000));
+      const profileTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Profile timeout')), 30000));
       const { error: profileError } = await Promise.race([profilePromise, profileTimeout]);
       if (profileError) throw profileError;
       console.log('Profile updated');
