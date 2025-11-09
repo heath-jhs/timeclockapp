@@ -76,7 +76,6 @@ const App = () => {
           if (profileError) throw profileError;
 
           setRole(profile.role || 'Employee');
-          if (!profile.has, setLoadingSession(false);
           if (!profile.has_password && location.pathname !== '/set-password') {
             console.log('App: User has no password, redirecting to /set-password');
             navigate('/set-password');
