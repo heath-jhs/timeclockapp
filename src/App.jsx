@@ -36,20 +36,30 @@ const App = () => {
             console.log('App: Processing invite hash...');
             setHashProcessed(true);
 
-            // Use longer timeout for setSession
-            const setSessionPromise = supabase.auth.setSession({
+            // Wait for auth state change instead of racing setSession
+            const authPromise = new Promise((resolve, reject) => {
+              const timeout = setTimeout(() => reject(new Error('Auth state timeout')), 60000);
+              const unsubscribe = supabase.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_IN' && session?.user) {
+                  clearTimeout(timeout);
+                  unsubscribe.subscription.unsubscribe();
+                  resolve(session);
+                }
+              });
+            });
+
+            // Trigger setSession to start the flow
+            await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken
-            });
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('setSession() timed out')), 30000)
-            );
-            const { error: setSessionError } = await Promise.race([setSessionPromise, timeoutPromise]);
-            if (setSessionError) throw setSessionError;
+            }).catch(() => {}); // Ignore error, wait for state change
 
-            console.log('App: Session set from hash, redirecting to /set-password');
+            const session = await authPromise;
+            console.log('App: Session established via auth state, user:', session.user.id);
+
             window.history.replaceState({}, '', '/set-password');
             if (mounted) {
+              setUser(session.user);
               setLoadingSession(false);
               navigate('/set-password', { replace: true });
             }
@@ -58,25 +68,17 @@ const App = () => {
         }
 
         // Normal session check
-        const getSessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('getSession() timed out')), 15000)
-        );
-        const { data: { session }, error: sessionError } = await Promise.race([getSessionPromise, timeoutPromise]);
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
         if (session?.user && mounted) {
           console.log('App: Session found, user:', session.user.id);
           setUser(session.user);
-          const profilePromise = supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('role, has_password')
             .eq('id', session.user.id)
             .single();
-          const profileTimeout = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Profile fetch timed out')), 15000)
-          );
-          const { data: profile, error: profileError } = await Promise.race([profilePromise, profileTimeout]);
           if (profileError) throw profileError;
 
           setRole(profile.role || 'Employee');
