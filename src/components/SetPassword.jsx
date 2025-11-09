@@ -15,23 +15,18 @@ const SetPassword = () => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        console.log('Fetching user for set password...');
+        console.log('Fetching user...');
         const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) {
-          console.error('getUser error:', userError);
-          setError('Failed to get user: ' + userError.message);
-          return;
-        }
+        if (userError) throw userError;
         if (user) {
-          console.log('User fetched:', user.email);
           setUserId(user.id);
           window.history.replaceState({}, '', '/set-password');
         } else {
-          setError('No authenticated user — invite link invalid');
+          setError('No user — invalid link');
         }
       } catch (err) {
-        console.error('Fetch user failed:', err);
-        setError('Error loading user: ' + err.message);
+        console.error('Fetch user error:', err);
+        setError(err.message);
       }
     };
     fetchUser();
@@ -44,30 +39,23 @@ const SetPassword = () => {
       return;
     }
     setLoading(true);
-    setError(null);
     try {
-      console.log('Updating password...');
+      console.log('Updating user password...');
       const { error: updateError } = await supabase.auth.updateUser({ password });
-      if (updateError) {
-        console.error('updateUser error:', updateError);
-        throw updateError;
-      }
-      console.log('Password updated');
+      if (updateError) throw updateError;
 
       console.log('Updating profile...');
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ phone_number: phone, has_password: true })
         .eq('id', userId);
-      if (profileError) {
-        console.error('Profile update error:', profileError);
-        throw profileError;
-      }
-      console.log('Profile updated');
+      if (profileError) throw profileError;
 
+      console.log('Success — redirecting');
       navigate('/');
     } catch (err) {
-      setError(err.message || 'Unknown error');
+      console.error('Set password error:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
