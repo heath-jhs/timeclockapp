@@ -16,6 +16,7 @@ const App = () => {
   const [error, setError] = useState(null);
   const [appError, setAppError] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
+  const [hashProcessed, setHashProcessed] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -24,7 +25,7 @@ const App = () => {
         console.log('App: Checking session and hash...');
 
         // Handle invite/confirmation hash FIRST
-        if (location.hash) {
+        if (location.hash && !hashProcessed) {
           const hash = location.hash.substring(1);
           const params = new URLSearchParams(hash);
           const type = params.get('type');
@@ -33,12 +34,14 @@ const App = () => {
 
           if ((type === 'signup' || type === 'invite' || type === 'recovery') && accessToken && refreshToken) {
             console.log('App: Processing invite hash...');
+            setHashProcessed(true); // Prevent double-processing
+
             const setSessionPromise = supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken
             });
             const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('setSession() timed out')), 15000)
+              setTimeout(() => reject(new Error('setSession() timed out')), 10000)
             );
             const { error: setSessionError } = await Promise.race([setSessionPromise, timeoutPromise]);
             if (setSessionError) throw setSessionError;
@@ -53,10 +56,10 @@ const App = () => {
           }
         }
 
-        // Normal session check
+        // Normal session check only if no hash or already processed
         const getSessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('getSession() timed out')), 15000)
+          setTimeout(() => reject(new Error('getSession() timed out')), 10000)
         );
         const { data: { session }, error: sessionError } = await Promise.race([getSessionPromise, timeoutPromise]);
         if (sessionError) throw sessionError;
@@ -104,14 +107,18 @@ const App = () => {
       console.log('App: Auth state changed:', event);
       if (session?.user) {
         setUser(session.user);
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, has_password')
-          .eq('id', session.user.id)
-          .single();
-        setRole(profile?.role || 'Employee');
-        if (!profile?.has_password && location.pathname !== '/set-password') {
-          navigate('/set-password');
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, has_password')
+            .eq('id', session.user.id)
+            .single();
+          setRole(profile?.role || 'Employee');
+          if (!profile?.has_password && location.pathname !== '/set-password') {
+            navigate('/set-password');
+          }
+        } catch (err) {
+          console.error('App: Profile fetch in auth listener failed:', err);
         }
       } else {
         setUser(null);
@@ -122,7 +129,7 @@ const App = () => {
       mounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [navigate, location]);
+  }, [navigate, location, hashProcessed]);
 
   const login = async () => {
     try {
