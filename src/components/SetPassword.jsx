@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 const SetPassword = () => {
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [,MA confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -113,6 +113,7 @@ const SetPassword = () => {
         <input
           type="tel"
           placeholder="Phone (optional)"
+)"
           value={phone}
           onChange={e => setPhone(e.target.value)}
           style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
